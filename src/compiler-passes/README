@@ -1,0 +1,40 @@
+Compiler Passes
+===============
+
+Naming convention
+-----------------
+
+Passes with higher numbers must come later.
+
+Passes with the same number can go in either order.
+
+3+ digit numbers are used for easy expansion.
+
+Passes
+------
+
+Name Resolution:
+ Alpha-renames an expression such that two variables are named the same
+  iff they are the same variable (i.e. there is no shadowing and all variables
+  from unrelated scopes are guaranteed disjoint).
+ This pass also detects free variables for various forms.
+ This pass also detects undefined variables. Undefined variables are not
+  considered free, as they are necessarily global and thus can't be
+  out of scope (so we dont need to capture them).
+ Finally, this pass also converts `labels` nodes into `letrec*` nodes (just
+  for ease).
+
+Analyze Usages:
+ Detects which variables are referenced, set!'d, or captured.
+
+Flatten Forms:
+ Flattens nested forms that can be flattened.
+ Nested blocks are concatenated.
+ Nested `let` variants have their bindings merged, and `let`s inside of bindings
+  are also merged with their parent.
+ All `let` variants are converted into `letrec*` nodes.
+
+Compile Letrec:
+ Removes all `letrec*` nodes by compiling them to simpler nodes (either `let`
+  or `labels`).
+
