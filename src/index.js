@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
 import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
+import { cps } from './compiler-passes/400-cps.js';
 import { flatten } from './compiler-passes/200-L-flatten-forms.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
 import {
@@ -57,6 +58,11 @@ function visualize_pipeline(code) {
   const depanalysis = compile_letrec(flattened);
   console.log('Compiled-out:');
   console.log(pretty_print(depanalysis));
+
+  print_header("continuation passing style");
+  const cpsed = cps(depanalysis);
+  console.log('CPS:');
+  console.log(pretty_print(cpsed));
 }
 
 function print_header(header, spacer = '\n\n\n\n\n') {

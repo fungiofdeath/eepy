@@ -15,10 +15,14 @@ export function map_subforms(fn, exp, ...args) {
       return exp;
     case 'set!':
       return { ...exp, value: visit(exp.value) };
+    case 'set!-then':
+      return { ...exp, value: visit(exp.value), then: visit(exp.then) };
     case 'block':
       return { ...exp, subforms: exp.subforms.map(visit) };
     case 'call':
       return { ...exp, fn: visit(exp.fn), args: exp.args.map(visit) };
+    case 'kcall':
+      return { ...exp, arg: visit(exp.arg) };
     case 'if':
       return {
         ...exp,
@@ -35,6 +39,15 @@ export function map_subforms(fn, exp, ...args) {
         binds: exp.binds.map(({ value, ...rest }) => ({
           ...rest,
           value: visit(value),
+        })),
+        body: visit(exp.body),
+      };
+    case 'klabels':
+      return {
+        ...exp,
+        binds: exp.binds.map(({ body, ...rest }) => ({
+          ...rest,
+          body: visit(body),
         })),
         body: visit(exp.body),
       };

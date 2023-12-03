@@ -40,3 +40,6 @@ Compile Letrec:
  Removes all `letrec*` nodes by compiling them to simpler nodes (either `let`
   or `labels`).
 
+CPS:
+ Transforms all nodes into continuation-passing style. Continuations are marked
+  in a special way for later optimization.

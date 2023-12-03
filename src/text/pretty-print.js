@@ -6,6 +6,7 @@ import { UnknownNode } from '../utils/errors.js';
 import { debug_repr } from '../utils/debug.js';
 
 export function pretty_print(exp, indent = '') {
+  // console.debug('\npretty_print', debug_repr(exp));
   const rec = (f, new_indent = indent) => pretty_print(f, new_indent);
   const indent2 = indent + '  ';
   const indent4 = indent + '    ';
@@ -21,13 +22,26 @@ export function pretty_print(exp, indent = '') {
         `\n${indent2}`,
         60,
       );
+    case 'set!-then':
+      return partsfmt(
+        `(set!-then ${namefmt(exp.name)}\f${rec(exp.value, indent2)}\f${rec(exp.then, indent2)})`,
+        ' ',
+        `\n${indent2}`,
+        60,
+      );
     case 'block':
       return `(begin${exp.subforms
         .map(f => `\n${indent2}${rec(f, indent2)}`)
         .join('')})`;
     case 'call': {
-      const parts = exp.args.map(f => `\f${rec(f, indent + ' ')}`).join('');
+      const args = exp.args;
+      if (exp.cont) args.unshift(exp.cont);
+      if (exp.handlers) args.unshift(exp.handlers);
+      const parts = args.map(f => `\f${rec(f, indent + ' ')}`).join('');
       return `(${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
+    }
+    case 'kcall': {
+      return `(${rec(exp.name)} ${rec(exp.arg)})`;
     }
     case 'if':
       return partsfmt(
@@ -54,15 +68,31 @@ export function pretty_print(exp, indent = '') {
         )
         .join(`\n${sub}`)})\n${indent2}${rec(exp.body, indent2)})`;
     }
-    case 'lambda':
+    case 'klabels': {
+      const sub = indent + repeat(' ', exp.$.length) + '   ';
+      return `(${exp.$} (${exp.binds
+        .map(f =>
+          partsfmt(
+            `(${namefmt(f.name)} (${namefmt(f.param)})\f${rec(f.body, sub + '  ')})`,
+            ' ',
+            `\n${sub}  `,
+          ),
+        )
+        .join(`\n${sub}`)})\n${indent2}${rec(exp.body, indent2)})`;
+    }
+    case 'lambda': {
+      const params = exp.params;
+      if (exp.kparam) params.unshift(exp.kparam);
+      if (exp.hparam) params.unshift(exp.hparam);
       return partsfmt(
-        `(lambda (${exp.params.map(namefmt).join(' ')})\f${rec(
+        `(lambda (${params.map(namefmt).join(' ')})\f${rec(
           exp.body,
           indent2,
         )})`,
         ' ',
         `\n${indent2}`,
       );
+    }
     default:
       throw new UnknownNode(exp);
   }
