@@ -1,0 +1,29 @@
+{
+  "name": "eepy",
+  "version": "1.0.0",
+  "description": "An eepy language for tired kitties",
+  "main": "src/index.js",
+  "author": "Fungi",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "devDependencies": {
+    "prettier": "3.0.3"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=21.0.0"
+  },
+  "prettier": {
+    "arrowParens": "avoid",
+    "endOfLine": "lf",
+    "printWidth": 80,
+    "quoteProps": "as-needed",
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "all",
+    "useTabs": false
+  }
+}
