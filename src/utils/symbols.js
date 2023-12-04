@@ -1,4 +1,4 @@
-export let symbol_table = [];
+export const symbol_table = [];
 
 export function gensym(name, rest = {}) {
   let extra_data = { ...rest };

@@ -6,19 +6,18 @@ export function flatten(exp) {
     default:
       return map_subforms(flatten, exp);
     case 'let*':
-    case 'letrec*':
     case 'letrec*': {
       if (exp.binds.length === 0) return flatten(exp.body);
       const new_binds = exp.binds.flatMap(({ name, value, ...rest }) => {
         const fvalue = flatten(value);
-        if (['let*', 'letrec*', 'letrec*'].includes(fvalue.$)) {
+        if (['let*', 'letrec*'].includes(fvalue.$)) {
           return [...fvalue.binds, { name, value: fvalue.body, ...rest }];
         } else {
           return [{ name, value: fvalue, ...rest }];
         }
       });
       const new_body = flatten(exp.body);
-      if (['let', 'letrec*', 'letrec*'].includes(new_body.$)) {
+      if (['let*', 'letrec*'].includes(new_body.$)) {
         new_binds.push(...new_body.binds);
         return { ...new_body, $: 'letrec*', binds: new_binds };
       }
