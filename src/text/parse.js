@@ -156,6 +156,7 @@ function convert_to_ast(sexp) {
         then: rec(sexp[2]),
         otherwise: rec(sexp[3]),
       };
+    case 'let':
     case 'let*':
     case 'letrec*': {
       const bindings = sexp[1];

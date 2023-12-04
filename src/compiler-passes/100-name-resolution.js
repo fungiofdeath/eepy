@@ -19,6 +19,27 @@ export function resolve_names(exp, env) {
       return step({ ...exp, name: env.get(exp.name) });
     /// Bindings
     ///
+    case 'let': {
+      const let_env = env.new_scope();
+      const new_binds = exp.binds.map(({ name, value, ...rest }) => {
+        const new_name = let_env.bind(name);
+        const value_env = let_env.new_scope();
+        const new_value = resolve_names(value, value_env);
+        return {
+          ...rest,
+          name: new_name,
+          value: new_value,
+          free_vars: value_env.free_vars,
+        };
+      });
+      const body_env = let_env.new_scope();
+      return {
+        ...exp,
+        binds: new_binds,
+        body: resolve_names(exp.body, body_env),
+        free_vars: body_env.free_vars,
+      };
+    }
     case 'let*': {
       const inner_env = env.new_scope();
       const new_binds = exp.binds.map(({ name, value, ...rest }) => {

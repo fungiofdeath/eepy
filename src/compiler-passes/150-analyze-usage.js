@@ -11,6 +11,7 @@ export function analyze_usages(exp, seen_vars = new Set()) {
       seen_vars.add(exp.name);
       exp.name.set = true;
       break;
+    case 'let':
     case 'let*':
     case 'labels':
     case 'letrec*':
