@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 
-import { analyze_usages } from './compiler-passes/150-analyze-usage.js';
+import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
 import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
-import { flatten } from './compiler-passes/200-flatten-forms.js';
+import { flatten } from './compiler-passes/200-L-flatten-forms.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
 import {
   Env,

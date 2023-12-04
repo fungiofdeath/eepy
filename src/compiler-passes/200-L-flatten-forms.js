@@ -1,4 +1,3 @@
-import { InvalidNode } from '../utils/errors.js';
 import { map_subforms } from '../utils/visitors.js';
 
 export function flatten(exp) {
@@ -22,7 +21,7 @@ export function flatten(exp) {
       const new_body = flatten(exp.body);
       if (exp.$ === new_body.$) {
         new_binds.push(...new_body.binds);
-        return { ...new_body, $: exp.$, binds: new_binds };
+        return { ...new_body, binds: new_binds };
       }
       return { ...exp, binds: new_binds, body: new_body };
     }
