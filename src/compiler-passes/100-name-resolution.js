@@ -43,8 +43,6 @@ export function resolve_names(exp, env) {
       };
     }
     case 'labels':
-      // convert to a letrec and repeat
-      return resolve_names({ ...exp, $: 'letrec*' }, env);
     case 'letrec*': {
       // "total" because its the scope for all binds and the body
       const total_env = env.new_scope();

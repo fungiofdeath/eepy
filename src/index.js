@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 
-import { analyze_usages } from './compiler-passes/200-analyze-usage.js';
+import { analyze_usages } from './compiler-passes/150-analyze-usage.js';
 import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
 import { flatten } from './compiler-passes/200-flatten-forms.js';
+import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
 import {
   Env,
   Globals,
@@ -36,12 +37,17 @@ function visualize_pipeline(code) {
     [...globals.undefined_vars].map(([_, v]) => v),
   );
 
+  print_header('normalize let forms');
+  const normalized = normalize_let_variants(resolved);
+  console.log('New AST');
+  console.log(pretty_print(normalized));
+
   print_header('analyze usages');
   console.log('Analysis');
-  console.log(analyze_usages(resolved));
+  console.log(analyze_usages(normalized));
 
   print_header('flatten extraneously-nested forms');
-  const flattened = flatten(resolved);
+  const flattened = flatten(normalized);
   console.log('Flattened:');
   console.log(pretty_print(flattened));
 
