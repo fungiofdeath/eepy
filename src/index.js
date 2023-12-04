@@ -44,7 +44,9 @@ function visualize_pipeline(code) {
 
   print_header('analyze usages');
   console.log('Analysis');
-  console.log(analyze_usages(normalized));
+  console.log(
+    new Set([...analyze_usages(normalized)].sort((x, y) => x.id - y.id)),
+  );
 
   print_header('flatten extraneously-nested forms');
   const flattened = flatten(normalized);
