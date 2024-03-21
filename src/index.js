@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import readline from 'node:readline';
 
 import { program } from 'commander';
 
@@ -10,6 +11,11 @@ import { flatten } from './compiler-passes/300-flatten-forms.js';
 import { compile_letrec } from './compiler-passes/400-compile-letrec.js';
 import { start_cps } from './compiler-passes/500-cps.js';
 
+import { Env as InterpreterEnv } from './interpreter/environment.js';
+import { builtins } from './interpreter/builtins.js';
+import { evaluate } from './interpreter/eval.js';
+import { EepySymbol } from './interpreter/types.js';
+
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
 import { pretty_print } from './text/pretty-print.js';
@@ -19,7 +25,8 @@ program
   .description('An eeepy language for silly, tired kitties')
   .version('1.0.0');
 
-program.command('pipeline')
+program
+  .command('pipeline')
   .description('Show the compilation pipeline for a target file')
   .argument('<path>', 'Path to the file')
   .option('--encoding <encoding>', 'Encoding the file uses', 'utf8')
@@ -31,7 +38,48 @@ program.command('pipeline')
     visualize_pipeline(file);
   });
 
+program
+  .command('repl')
+  .description('Open a REPL')
+  .action(() => repl());
+
 program.parse();
+
+function repl() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: '> ',
+    tabSize: 2,
+  });
+  EepySymbol.t = new EepySymbol('t');
+  EepySymbol.nil = new EepySymbol('nil');
+  const builtin_env = new InterpreterEnv(null);
+  builtin_env.readonly = true;
+  builtin_env.bindings = builtins;
+  const global_env = new InterpreterEnv(builtin_env);
+  rl.on('line', line => {
+    const errors = [];
+    for (const exp of parse(line, errors)) {
+      try {
+        if (errors.length > 0) {
+          for (let i = 0; i < errors.length; ++i) {
+            console.error('Error', debug_repr(errors.shift()));
+          }
+        } else {
+          const env = init_env();
+          const ast = sexp_to_ast(exp, env);
+          const result = evaluate(global_env, ast);
+          console.log(result.print());
+        }
+      } catch (e) {
+        console.error('Error', e);
+      }
+    }
+    rl.prompt();
+  });
+  rl.prompt();
+}
 
 function visualize_pipeline(code) {
   const errors = [];
@@ -40,26 +88,11 @@ function visualize_pipeline(code) {
       consumeErrors(errors);
 
       print_header('name resolution');
-      const env = new Env(errors);
-      const core_module_result = env.import_module('sys:core');
-      core_module_result.consume(
-        core_module => {
-          for (const item of core_module.items.keys()) {
-            env.add_import_symbol({ $: 'atom', name: item }, core_module);
-          }
-        },
-        errors => {
-          throw new Error(
-            'Fatal error: Could not construct core module due to',
-            errors,
-          );
-        },
-      );
+      const env = init_env();
       const resolved = sexp_to_ast(exp, env);
       // console.debug(debug_repr(resolved));
       consumeErrors(errors);
-      console.log(pretty_print(resolved))
-        
+      console.log(pretty_print(resolved));
 
       print_header('naming lambdas');
       const named = name_lambdas(resolved);
@@ -96,6 +129,25 @@ function visualize_pipeline(code) {
       console.error('Error', e);
     }
   }
+}
+
+function init_env() {
+  const env = new Env(errors);
+  const core_module_result = env.import_module('sys:core');
+  core_module_result.consume(
+    core_module => {
+      for (const item of core_module.items.keys()) {
+        env.add_import_symbol({ $: 'atom', name: item }, core_module);
+      }
+    },
+    errors => {
+      throw new Error(
+        'Fatal error: Could not construct core module due to',
+        errors,
+      );
+    },
+  );
+  return env;
 }
 
 function print_header(header, spacer = '\n\n\n\n\n') {
