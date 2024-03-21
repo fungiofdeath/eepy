@@ -48,7 +48,7 @@ export class Cons extends Value {
       out += ` ${cursor.car.print()}`;
       cursor = cursor.cdr;
     }
-    if (cursor === Eepy.nil) {
+    if (cursor === EepySymbol.nil) {
       return `${out})`;
     }
     return `${out} . ${cursor.print()})`;

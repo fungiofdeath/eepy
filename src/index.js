@@ -11,10 +11,9 @@ import { flatten } from './compiler-passes/300-flatten-forms.js';
 import { compile_letrec } from './compiler-passes/400-compile-letrec.js';
 import { start_cps } from './compiler-passes/500-cps.js';
 
+import InterpreterGlobals from './interpreter/globals.js'
 import { Env as InterpreterEnv } from './interpreter/environment.js';
-import { builtins } from './interpreter/builtins.js';
 import { evaluate } from './interpreter/eval.js';
-import { EepySymbol } from './interpreter/types.js';
 
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
@@ -52,12 +51,7 @@ function repl() {
     prompt: '> ',
     tabSize: 2,
   });
-  EepySymbol.t = new EepySymbol('t');
-  EepySymbol.nil = new EepySymbol('nil');
-  const builtin_env = new InterpreterEnv(null);
-  builtin_env.readonly = true;
-  builtin_env.bindings = builtins;
-  const global_env = new InterpreterEnv(builtin_env);
+  const topenv = new InterpreterEnv(InterpreterGlobals);
   rl.on('line', line => {
     const errors = [];
     for (const exp of parse(line, errors)) {
@@ -69,7 +63,7 @@ function repl() {
         } else {
           const env = init_env();
           const ast = sexp_to_ast(exp, env);
-          const result = evaluate(global_env, ast);
+          const result = evaluate(topenv, ast);
           console.log(result.print());
         }
       } catch (e) {
