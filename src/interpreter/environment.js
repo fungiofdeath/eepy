@@ -35,7 +35,7 @@ export class Env {
       }
       cursor = cursor.parent;
     }
-    throw new NameError(name, this);
+    throw new NameError(name);
   };
 
   /**

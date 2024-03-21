@@ -42,9 +42,8 @@ export class DuplicateBinding extends NodeError {
 }
 
 export class NameError extends NodeError {
-  constructor(name, scope) {
-    const s = debug_repr(scope);
-    super(`Variable ${name} not found.\nFull scope: ${s}`);
+  constructor(name) {
+    super(`Variable ${name} not found.`);
   }
 }
 
@@ -57,7 +56,7 @@ export class NotImplemented extends NodeError {
 export class TypeError extends NodeError {
   constructor (expected, actual, code) {
     const printed = pretty_print(code, '  ');
-    super(`Invalid type: expected ${expected} got ${actual} in\n${printed}`);
+    super(`Invalid type: expected ${expected} got ${actual} in\n  ${printed}`);
   }
 }
 

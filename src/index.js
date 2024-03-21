@@ -18,6 +18,12 @@ import { evaluate } from './interpreter/eval.js';
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
 import { pretty_print } from './text/pretty-print.js';
+import {
+  DuplicateBinding,
+  InvalidArgumentsError,
+  NameError,
+  TypeError,
+} from './utils/errors.js';
 
 program
   .name('eepy')
@@ -67,7 +73,16 @@ function repl() {
           console.log(result.print());
         }
       } catch (e) {
-        console.error('Error', e);
+        if (
+          e instanceof InvalidArgumentsError ||
+          e instanceof TypeError ||
+          e instanceof NameError ||
+          e instanceof DuplicateBinding
+        ) {
+          console.error(`${e.constructor.name}: ${e.message}`);
+        } else {
+          throw e;
+        }
       }
     }
     rl.prompt();
