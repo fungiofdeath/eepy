@@ -64,10 +64,10 @@ export class TypeError extends NodeError {
 export class InvalidArgumentsError extends NodeError {
   constructor (fn, args, errors) {
     const pretty_args = args.map(a => ` ${a.print()}`).join('');
-    let err = `Errors in (${fn} ${pretty_args}):`;
-    for (const [i, err] in errors.entries) {
-      err += `\n${i}: ${err}`
+    let error = `Errors in (${fn}${pretty_args}):`;
+    for (const [i, err] of errors.entries()) {
+      error += `\n\t${i}: ${err}`
     }
-    super(err);
+    super(error);
   }
 }
