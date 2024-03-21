@@ -29,7 +29,6 @@ The following functions are included:
 - `eq?`, `not` — boolean functions
 - `andf`, `orf` — function versions of `and` and `or` without short-circuiting
 - `print` — output
-- `compose` — higher-order functions
 
 ## `if`
 
