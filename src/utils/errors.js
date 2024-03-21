@@ -1,3 +1,4 @@
+import { pretty_print } from "../text/pretty-print.js";
 import { debug_repr } from "./debug.js";
 
 class NodeError extends Error {
@@ -37,5 +38,36 @@ export class InvalidNode extends NodeError {
 export class DuplicateBinding extends NodeError {
   constructor(name) {
     super(`Variable ${name} is already bound in environment`);
+  }
+}
+
+export class NameError extends NodeError {
+  constructor(name, scope) {
+    const s = debug_repr(scope);
+    super(`Variable ${name} not found.\nFull scope: ${s}`);
+  }
+}
+
+export class NotImplemented extends NodeError {
+  constructor(name) {
+    super(`Method .${name} not implemented`);
+  }
+}
+
+export class TypeError extends NodeError {
+  constructor (expected, actual, code) {
+    const printed = pretty_print(code, '  ');
+    super(`Invalid type: expected ${expected} got ${actual} in\n${printed}`);
+  }
+}
+
+export class InvalidArgumentsError extends NodeError {
+  constructor (fn, args, errors) {
+    const pretty_args = args.map(a => ` ${a.print()}`).join('');
+    let err = `Errors in (${fn} ${pretty_args}):`;
+    for (const [i, err] in errors.entries) {
+      err += `\n${i}: ${err}`
+    }
+    super(err);
   }
 }
