@@ -104,6 +104,8 @@
 ]
 
 #chapter([Special Forms])[
+	#set super(size: 10pt, typographic: false)
+
 	== _Special Form_ `block`
 	=== Grammar
 	`(block` _expressions_\*`)` $->$ _results_\*
@@ -113,7 +115,7 @@
 	- _results_\* is a multivalue
 
 	=== Explanation
-	`block` returns the #llink("bodyresults")[body result] of its
+	`block` returns the #llink("bodyresults")[body results] of its
 	_expressions_\*.
 
 	The last expression (if any) is evaluated in tail position.
@@ -240,14 +242,66 @@
 		$ &#raw("(if") c space.fig t space.fig f#raw(")") \ =>
 			&#raw("(cond (")c space.fig t#raw(") (")#t f#raw("))") $
 	)
+
+	#line(length: 100%)
+
+	== _Special Forms_ `let`, `let*`, `letrec*`, `labels`
+	=== Grammar
+	`(let     (`*binding*\*`) `_body\*_`)` $->$ _result_\*
+
+	`(let*    (`*binding*\*`) `_body\*_`)` $->$ _result_\*
+
+	`(letrec* (`*binding*\*`) `_body\*_`)` $->$ _result_\*
+
+	`(labels  (`*function*\*`) `_body\*_`)` $->$ _result_\*
+
+	/ binding: $:=$ _name_ $|$ `(`_name_ _value-body_\*`)`
+	/ function: $:=$ `(`_name_ `(`_parameters_\*`)` _function-body_\*`)`
+
+	=== Types
+	- _body_\* is a #refl("body")
+	- _name_ is a symbol
+	- _value-body_\* is a #refl("body")
+	- _parameters_\* is a #llink("paramlist")[parameter list]
+	- _function-body_\* is a #refl("body")
+
+	=== Explanation
+	`let` #llink("independent")[independently] binds each _name_ to the
+	#llink("bodyresults")[body result] of its _value-body_\*.
+
+	`let*` binds each _name_ to the
+	#llink("bodyresults")[body result] of its _value-body_\*.
+	Each _value-body_\* can refer to any _name_ bound earlier in
+	the bindings.
+
+	`letrec*` binds each _name_ to the #llink("bodyresults")[body result] of
+	its _value-body_\*. _names_ cannot be reused --- every
+	binding _name_ must be unique.  Each _value-body_\* may refer to
+	any _name_ bound in the bindings, unless:
+	- the reference to _name_ is not within a `fn` expression,
+	- the referenced _name_ is bound after the _value-body_\* is evaluated, and
+	- the referenced _name_'s _value-body_\* is not an #refl("atomic") or
+		`fn` expression.
+	
+	`labels` binds each _name_ to a function with the
+	mentioned _parameters_\* and _function-body_\*. Each _function-body_\*
+	may refer to any _name_ bound in the bindings.
+
+	Each let variants' bindings are established lexically within their _body_\*.
+	They each return the #llink("bodyresults")[body results] of their _body_\*.
+	The _value-bodies_\* are evaluated and bound to their respective _names_ in
+	order.  The last expression in the _body_\* is evaluated in tail position.
 ]
 
 #chapter([Definitions])[
+	#define(id: "atomic", "Atomic")[
+		- (adj. of an expression): A constant expression
+	]
 	#define(id: "body", "Body")[
 		A sequence of forms which are evaluated in order and together --- i.e.
 		when any form is evaluated, all forms all evaluated.
 	]
-	#define(id: "bodyresults", "Body Results")[
+	#define(id: "bodyresults", "Body Result(s)")[
 		The result(s) of the last form of some #refl("body"), or #nil if the body
 		contains no forms.
 	]
@@ -257,12 +311,19 @@
 	#define(id: "genbool", "Generalized boolean")[
 		A value where #nil represents falsity and any other value represents truth.
 	]
-	#define(id: "truthy", "Truthy")[
-		- (for a #llink("genbool")[generalized boolean]): Being non-#nil.
-		- (for a boolean): Equalling #t.
+	#define(id: "independent", "Independent")[
+		- (adj. of a set of bindings): A set of bindings where each binding has
+			a unique name and cannot refer to any other binding in the set.
+	]
+	#define(id: "paramlist", "Parameter List")[
+		A list of symbols for use as parameters to a function.
 	]
 	#define(id: "selfeval", "Self Evaluating")[
 		A symbol or other object that --- when evaluated --- returns itself.
 		Most values are self-evaluating, as well as #t and #nil.
+	]
+	#define(id: "truthy", "Truthy")[
+		- (for a #llink("genbool")[generalized boolean]): Being non-#nil.
+		- (for a boolean): Equalling #t.
 	]
 ]
