@@ -19,6 +19,10 @@
 	size: 1em + 2pt,
 )
 
+#show link: it => {
+	text(fill: blue, underline(it))
+}
+
 #set page(
 	header-ascent: 1em,
 	footer-descent: 1em,
@@ -49,6 +53,20 @@
 	]
 }
 
+#let deflink(name) = context {
+	let lbl = label(name);
+	let (found,) = query(lbl);
+	link(lbl, [#found])
+}
+#let llink(name, content) = context {
+	link(label(name), content)
+}
+#let refl(name) = llink(name, name)
+#let define(name, id: "", content) ={
+	let ref = if id == "" { name } else { id }
+	terms.item([#name #label(ref)], [\ #content])
+}
+
 #let atom(name) = raw(name)
 #let t = atom("t")
 #let nil = atom("nil")
@@ -77,8 +95,8 @@
 
 	=== Interpolation
 	An expression _e_'s result may be interpolated into a string by writing
-	`~`_e_ in the string. More complicated formatting may be done by writing
-	`\(fmt)~e`.
+	`~`_e_. More complex interpolations can be written using the `fmt` function.
+	`~`_e_ is equivalent to the `~a` format specifier.
 
 	=== Errors
 	Any string literal that includes an illegal character or invalid escape
@@ -91,14 +109,12 @@
 	`(block` _expressions_\*`)` $->$ _results_\*
 
 	=== Types
-	- _expressions_\* is a body
+	- _expressions_\* is a #refl("body")
 	- _results_\* is a multivalue
 
 	=== Explanation
-	Blocks are used to group sequences of expressions into a single expression.
-	They return the value of the last expression, or #nil if there are no
-	expressions. If the last expression returns multiple values, the block also
-	returns the multiple values.
+	`block` returns the #llink("bodyresults")[body result] of its
+	_expressions_\*.
 
 	The last expression (if any) is evaluated in tail position.
 
@@ -130,18 +146,17 @@
 	/ clause: $:=$ `(`_condition_ _body_\*`)`
 
 	=== Types
-	- _condition_ is a general boolean expression
-	- _body_\* is a body
+	- _condition_ is a #llink("genbool")[generalized boolean] expression
+	- _body_\* is a #refl("body")
 	- _results_\* is a multivalue
 
 	=== Explanation
-	`cond` checks each clause's _condition_ until it finds one which returns
-	a non-#nil value. If a clause's _condition_ is truthy, then its _body_\* is
-	evaluated as a block. The last expression in the _body_\*'s result(s) are
-	the result(s) of `cond`. The last expression in the _body_\* is invoked in
-	tail position.
+	`cond` evaluates each clause's _condition_ until it finds a #refl("truthy")
+	one.  If a clause's _condition_ is truthy, then `cond` returns the
+	#llink("bodyresults")[body results] of its _body_\*. The last expression of the
+	_body_\* is invoked in tail position.
 
-	If no _condition_ was non-#nil, then `cond` returns `nil`.
+	If no _condition_ was truthy, then `cond` returns `nil`.
 
 	=== Semantics
 	#grid(
@@ -168,6 +183,13 @@
 	=== Errors
 	None.
 
+	=== Other Notes
+	`cond` can be desugared into `if` via:
+	#block(
+		$ &#raw("(cond (")c space.fig b\*#raw(")") r\*#raw(")") \ =>
+			&#raw("(if") c #raw("(block") b\*#raw(") (cond") r\*#raw("))") $
+	)
+
 	#line(length: 100%)
 
 	== _Special Form_ `if`
@@ -175,7 +197,7 @@
 	`(if` _condition_ _true-case_ *\[* _false-case_ *\]*`)` $->$ _results_\*
 
 	=== Types
-	- _condition_ is a general boolean expression
+	- _condition_ is a #llink("genbool")[generalized boolean] expression
 	- _true-case_ is an expression
 	- _false-case_ is an expression. If it is omitted, its equivalent to #nil.
 	- _results_\* is a multivalue
@@ -211,4 +233,36 @@
 
 	=== Errors
 	None.
+
+	=== Other Notes
+	`if` can be desugared into `cond` via:
+	#block(
+		$ &#raw("(if") c space.fig t space.fig f#raw(")") \ =>
+			&#raw("(cond (")c space.fig t#raw(") (")#t f#raw("))") $
+	)
+]
+
+#chapter([Definitions])[
+	#define(id: "body", "Body")[
+		A sequence of forms which are evaluated in order and together --- i.e.
+		when any form is evaluated, all forms all evaluated.
+	]
+	#define(id: "bodyresults", "Body Results")[
+		The result(s) of the last form of some #refl("body"), or #nil if the body
+		contains no forms.
+	]
+	#define(id: "falsy", "Falsy")[
+		Equalling #nil.
+	]
+	#define(id: "genbool", "Generalized boolean")[
+		A value where #nil represents falsity and any other value represents truth.
+	]
+	#define(id: "truthy", "Truthy")[
+		- (for a #llink("genbool")[generalized boolean]): Being non-#nil.
+		- (for a boolean): Equalling #t.
+	]
+	#define(id: "selfeval", "Self Evaluating")[
+		A symbol or other object that --- when evaluated --- returns itself.
+		Most values are self-evaluating, as well as #t and #nil.
+	]
 ]
