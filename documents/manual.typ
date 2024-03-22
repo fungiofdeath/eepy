@@ -33,6 +33,7 @@
 )
 
 #set par(justify: true)
+#set super(size: 10pt, typographic: false)
 
 #let chapter = {
 	// unshadow
@@ -72,6 +73,21 @@
 #let nil = atom("nil")
 #let char(name) = [\#\\#raw(name)]
 
+
+#chapter([Typographical Conventions and Notation])[
+	Evaluation is represented via $x -> r$.
+
+	Macro expansion and desugaring is represented by $x => y$.
+
+	$overline(x)$ is used to indicate a multivalue.
+
+	Characters are written as #char("enter") or #char("c").
+
+	Terms that end with a \* or #super("+") are a list of subterms. \* indicates
+	the list can have 0 or more items, while #super("+") indicates the list must
+	have at least 1 item.
+]
+
 #chapter([Types])[
 	== Booleans
 	Booleans are handled via the symbols #t and #nil. These symbols are
@@ -104,8 +120,6 @@
 ]
 
 #chapter([Special Forms])[
-	#set super(size: 10pt, typographic: false)
-
 	== _Special Form_ `block`
 	=== Grammar
 	`(block` _expressions_\*`)` $->$ _results_\*
