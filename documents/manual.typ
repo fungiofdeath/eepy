@@ -27,6 +27,7 @@
 		#context { counter(page).display("1") }
 	],
 )
+
 #set par(justify: true)
 
 #let chapter = {
@@ -51,6 +52,38 @@
 #let atom(name) = raw(name)
 #let t = atom("t")
 #let nil = atom("nil")
+#let char(name) = [\#\\#raw(name)]
+
+#chapter([Types])[
+	== Booleans
+	Booleans are handled via the symbols #t and #nil. These symbols are
+	self-evaluating: #t $->$ #t and #nil $->$ #nil.
+
+	Every value is a valid generalized boolean. #nil is still used for false,
+	and all other values are "truthy".
+
+	== Strings
+	Strings are encoded using UTF-8 internally. Some invisible unicode
+	characters may be allowed, but not all. String literals may contain any
+	sequence of visible unicode characters --- with the following exceptions:
+	- #char("double-quote")
+	- #char("backslash")
+	- #char("tilde")
+
+	=== Escapes
+	The above characters may be escaped by prefixing them with #char("backslash").
+	Illegal characters may be written with the sequence `\u(`_hhhh_`)`,
+	where _hhhh_ are hex digits corresponding to the codepoint.
+
+	=== Interpolation
+	An expression _e_'s result may be interpolated into a string by writing
+	`~`_e_ in the string. More complicated formatting may be done by writing
+	`\(fmt)~e`.
+
+	=== Errors
+	Any string literal that includes an illegal character or invalid escape
+	triggers a read error.
+]
 
 #chapter([Special Forms])[
 	== _Special Form_ `block`
