@@ -33,15 +33,14 @@ export function pretty_print(exp, indent = '') {
       return `(begin${exp.subforms
         .map(f => `\n${indent2}${rec(f, indent2)}`)
         .join('')})`;
+    case 'kcall':
     case 'call': {
       const args = exp.args;
-      if (exp.cont) args.unshift(exp.cont);
-      if (exp.handlers) args.unshift(exp.handlers);
+      if (exp.arg_h) args.push(exp.arg_h);
+      if (exp.arg_k) args.push(exp.arg_k);
+      const kk = exp.$ === 'kcall' ? 'k ' : '';
       const parts = args.map(f => `\f${rec(f, indent + ' ')}`).join('');
-      return `(${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
-    }
-    case 'kcall': {
-      return `(${rec(exp.name)} ${rec(exp.arg)})`;
+      return `(${kk}${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
     }
     case 'if':
       return partsfmt(
@@ -55,6 +54,7 @@ export function pretty_print(exp, indent = '') {
       );
     case 'let':
     case 'let*':
+    case 'klabels':
     case 'labels':
     case 'letrec*': {
       const sub = indent + repeat(' ', exp.$.length) + '   ';
@@ -68,24 +68,13 @@ export function pretty_print(exp, indent = '') {
         )
         .join(`\n${sub}`)})\n${indent2}${rec(exp.body, indent2)})`;
     }
-    case 'klabels': {
-      const sub = indent + repeat(' ', exp.$.length) + '   ';
-      return `(${exp.$} (${exp.binds
-        .map(f =>
-          partsfmt(
-            `(${namefmt(f.name)} (${namefmt(f.param)})\f${rec(f.body, sub + '  ')})`,
-            ' ',
-            `\n${sub}  `,
-          ),
-        )
-        .join(`\n${sub}`)})\n${indent2}${rec(exp.body, indent2)})`;
-    }
+    case 'klambda':
     case 'lambda': {
       const params = exp.params;
-      if (exp.kparam) params.unshift(exp.kparam);
-      if (exp.hparam) params.unshift(exp.hparam);
+      if (exp.param_h) params.push(exp.param_h);
+      if (exp.param_k) params.push(exp.param_k);
       return partsfmt(
-        `(lambda (${params.map(namefmt).join(' ')})\f${rec(
+        `(${exp.$} (${params.map(namefmt).join(' ')})\f${rec(
           exp.body,
           indent2,
         )})`,
