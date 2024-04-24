@@ -12,7 +12,7 @@ export function pretty_print(exp, indent = '') {
   const indent4 = indent + '    ';
   switch (exp.$) {
     case 'literal':
-      return `${exp.value}`;
+      return `${debug_repr(exp.value)}`;
     case 'var':
       return `${namefmt(exp.name)}`;
     case 'set!':

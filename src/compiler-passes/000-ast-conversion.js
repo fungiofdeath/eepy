@@ -12,6 +12,32 @@ function nil(span) {
   return { $: 'var', name: 'nil', span };
 }
 
+function convert_quoted(exp) {
+  const atom = name => ({ $: 'atom', name });
+  const list = (...items) =>
+    items.length === 0
+      ? atom('nil')
+      : { $: 'list', items: items.map(convert_quoted) };
+  switch (exp.$) {
+    case 'string':
+      return exp.value;
+    case 'number':
+      return Number.parseFloat(exp.value);
+    case 'quote':
+      return list(atom('quote'), exp.exp);
+    case 'atom':
+      return atom(exp.name);
+    case 'record':
+      return list(atom('record'), ...exp.items);
+    case 'infix':
+      return list(atom('infix'), ...exp.items);
+    case 'list':
+      return list(...exp.items);
+    default:
+      throw UnknownNode(exp);
+  }
+}
+
 export function parse_tree_to_ast(exp) {
   const rec = x => parse_tree_to_ast(x);
   const rec_null = (x, default_span) => (!x ? nil(default_span) : rec(x));
@@ -33,6 +59,8 @@ export function parse_tree_to_ast(exp) {
       return { ...exp, $: 'literal' };
     case 'number':
       return { ...exp, $: 'literal', value: Number.parseFloat(exp.value) };
+    case 'quote':
+      return { $: 'literal', span: exp.span, value: convert_quoted(exp.exp) };
     case 'atom':
       return { ...exp, $: 'var' };
     case 'record':
@@ -248,7 +276,6 @@ export function parse_tree_to_ast(exp) {
         };
       }
     }
-    case 'quote':
     case 'infix':
       throw new Todo(exp, 'sexp->ast');
     default:
