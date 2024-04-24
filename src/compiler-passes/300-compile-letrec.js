@@ -45,7 +45,7 @@ export function compile_letrec(exp) {
 
       const vertices = [...lookup_vars].map(([_, v]) => v);
       const sccs = find_sccs(vertices, edges);
-      return sccs.reduceRight(reduce_scc_to_ast, body);
+      return sccs.reduceRight(reduce_scc_to_ast(exp.span), body);
   }
 }
 
@@ -96,70 +96,81 @@ function find_sccs(vertices, edges) {
   return connected_components;
 }
 
-function reduce_scc_to_ast(body, scc) {
-  function empty_bind(name) {
-    const nil = { $: 'literal', value: null };
+function reduce_scc_to_ast(span) {
+  function empty_bind(name, span) {
+    const nil = { $: 'literal', value: null, span };
     return { name, value: nil, free_vars: new Set() };
   }
-  if (scc.length === 1) {
-    const { bind } = scc[0];
-    const { name, value, free_vars } = bind;
-    // check if this is recursive
-    if (!free_vars.has(name)) {
-      // not recursive, so we can use a simple let-binding
-      return { $: 'let', binds: [bind], body };
-    } else if (value.$ === 'lambda' && !name.set) {
-      // this is a recursive lambda, so we can use a `labels`
-      return { $: 'labels', binds: [bind], body };
-    } else {
-      // we need to compile it into
-      // | (let ((name nil))
-      // |   (set! name val)
-      // |   body)
-      const set = { $: 'set!', name, value };
-      return {
-        $: 'let',
-        binds: [empty_bind(name)],
-        body: { $: 'block', subforms: [set, body] },
-      };
+  return function reducer(body, scc) {
+    if (scc.length === 1) {
+      const { bind } = scc[0];
+      const { name, value, free_vars } = bind;
+      // check if this is recursive
+      if (!free_vars.has(name)) {
+        // not recursive, so we can use a simple let-binding
+        return { $: 'let', binds: [bind], body, span };
+      } else if (value.$ === 'lambda' && !name.set) {
+        // this is a recursive lambda, so we can use a `labels`
+        return { $: 'labels', binds: [bind], body, span };
+      } else {
+        // we need to compile it into
+        // | (let ((name nil))
+        // |   (set! name val)
+        // |   body)
+        const set = { $: 'set!', name, value, span: bind.span };
+        return {
+          $: 'let',
+          binds: [empty_bind(name, bind.span)],
+          body: { $: 'block', subforms: [set, body], span },
+          span,
+        };
+      }
     }
-  }
-  // This are initially sparse. Bindings will be inserted in the same position
-  //  as in the letrec.binds, and will later be "squished" to make them
-  //  contiguous (non-sparse).
-  // This is done to ensure that `set!`s occur in the correct order.
-  let complex = [];
-  // This isn't necessary for lambdas, since theyre not effectful.
-  const lambdas = [];
-  for (const { bind, at } of scc) {
-    const { name, value } = bind;
-    if (value.$ === 'lambda' && !name.set) {
-      // since this lambda isnt mutated, we can use `labels`
-      lambdas.push(bind);
-    } else {
-      // things here will use a predefined (let-bound) variable, and then
-      // set! the variable to its correct value
-      complex[at] = bind;
+    // This are initially sparse. Bindings will be inserted in the same position
+    //  as in the letrec.binds, and will later be "squished" to make them
+    //  contiguous (non-sparse).
+    // This is done to ensure that `set!`s occur in the correct order.
+    let complex = [];
+    // This isn't necessary for lambdas, since theyre not effectful.
+    const lambdas = [];
+    for (const { bind, at } of scc) {
+      const { name, value } = bind;
+      if (value.$ === 'lambda' && !name.set) {
+        // since this lambda isnt mutated, we can use `labels`
+        lambdas.push(bind);
+      } else {
+        // things here will use a predefined (let-bound) variable, and then
+        // set! the variable to its correct value
+        complex[at] = bind;
+      }
     }
-  }
-  // squish the array to remove empty elements
-  complex = complex.filter(b => b);
-  return {
-    $: 'let',
-    binds: complex.map(({ name }) => empty_bind(name)),
-    body: {
-      $: 'labels',
-      binds: lambdas,
+    // squish the array to remove empty elements
+    complex = complex.filter(b => b);
+    return {
+      $: 'let',
+      binds: complex.map(({ name, span }) => empty_bind(name, span)),
       body: {
-        $: 'block',
-        subforms: [
-          ...complex.map(({ name, value }) => ({ $: 'set!', name, value })),
-          body,
-        ],
+        $: 'labels',
+        binds: lambdas,
+        body: {
+          $: 'block',
+          subforms: [
+            ...complex.map(({ name, value, span }) => ({
+              $: 'set!',
+              name,
+              value,
+              span,
+            })),
+            body,
+          ],
+          span,
+        },
+        span,
       },
-    },
+      span,
+    };
   };
-};
+}
 
 function simplep(exp) {
   switch (exp.$) {
