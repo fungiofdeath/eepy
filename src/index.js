@@ -11,7 +11,7 @@ import {
   resolve_names,
 } from './compiler-passes/100-name-resolution.js';
 
-import { parse } from './text/parse2.js';
+import { parse } from './text/parse.js';
 import { pretty_print } from './text/pretty-print.js';
 import { debug_repr } from './utils/debug.js';
 import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
