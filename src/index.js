@@ -11,8 +11,10 @@ import {
   resolve_names,
 } from './compiler-passes/100-name-resolution.js';
 
-import { parse } from './text/parse.js';
+import { parse } from './text/parse2.js';
 import { pretty_print } from './text/pretty-print.js';
+import { debug_repr } from './utils/debug.js';
+import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
 
 const sample = fs.readFileSync('samples/random-shit-1.sample.lisp', {
   encoding: 'utf-8',
@@ -22,47 +24,62 @@ const sample = fs.readFileSync('samples/random-shit-1.sample.lisp', {
 visualize_pipeline(sample);
 
 function visualize_pipeline(code) {
-  print_header('parsing', '');
-  const ast = parse(code);
-  console.log('Result:');
-  console.log(pretty_print(ast));
+  const errors = [];
+  for (const exp of parse(code, errors)) {
+    try {
+      if (errors.length > 0) {
+        for (const error of errors) {
+          console.error('Error', debug_repr(error));
+        }
+        for (let i = 0; i < errors.length; ++i) {
+          errors.pop();
+        }
+      } else {
+        print_header('parsing');
+        const ast = parse_tree_to_ast(exp);
+        console.log(pretty_print(ast));
 
-  print_header('name resolution');
-  const globals = new Globals();
-  const start_env = new Env(null, globals);
-  const resolved = resolve_names(ast, start_env);
-  console.log('Result:');
-  console.log(pretty_print(resolved));
-  console.log(
-    '\nUndefined variables',
-    [...globals.undefined_vars].map(([_, v]) => v),
-  );
+        print_header('name resolution');
+        const globals = new Globals();
+        const start_env = new Env(null, globals);
+        const resolved = resolve_names(ast, start_env);
+        console.log('Result:');
+        console.log(pretty_print(resolved));
+        console.log(
+          '\nUndefined variables',
+          [...globals.undefined_vars].map(([_, v]) => v),
+        );
 
-  print_header('normalize let forms');
-  const normalized = normalize_let_variants(resolved);
-  console.log('New AST');
-  console.log(pretty_print(normalized));
+        print_header('normalize let forms');
+        const normalized = normalize_let_variants(resolved);
+        console.log('New AST');
+        console.log(pretty_print(normalized));
 
-  print_header('analyze usages');
-  console.log('Analysis');
-  console.log(
-    new Set([...analyze_usages(normalized)].sort((x, y) => x.id - y.id)),
-  );
+        print_header('analyze usages');
+        console.log('Analysis');
+        console.log(
+          new Set([...analyze_usages(normalized)].sort((x, y) => x.id - y.id)),
+        );
 
-  print_header('flatten extraneously-nested forms');
-  const flattened = flatten(normalized);
-  console.log('Flattened:');
-  console.log(pretty_print(flattened));
+        print_header('flatten extraneously-nested forms');
+        const flattened = flatten(normalized);
+        console.log('Flattened:');
+        console.log(pretty_print(flattened));
 
-  print_header("compile-out letrec*'s");
-  const depanalysis = compile_letrec(flattened);
-  console.log('Compiled-out:');
-  console.log(pretty_print(depanalysis));
+        print_header("compile-out letrec*'s");
+        const depanalysis = compile_letrec(flattened);
+        console.log('Compiled-out:');
+        console.log(pretty_print(depanalysis));
 
-  print_header("continuation passing style");
-  const cpsed = start_cps(depanalysis);
-  console.log('CPS:');
-  console.log(pretty_print(cpsed));
+        print_header("continuation passing style");
+        const cpsed = start_cps(depanalysis);
+        console.log('CPS:');
+        console.log(pretty_print(cpsed));
+      }
+    } catch (e) {
+      console.error('Error', e);
+    }
+  }
 }
 
 function print_header(header, spacer = '\n\n\n\n\n') {
