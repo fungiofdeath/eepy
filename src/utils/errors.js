@@ -6,6 +6,20 @@ class NodeError extends Error {
   }
 }
 
+export class Todo extends NodeError {
+  constructor(exp, phase) {
+    const x = debug_repr(exp);
+    super(`Node type ${exp.$} is unfinished in phase ${phase}.\nFull node: ${x}`);
+  }
+}
+
+export class WrongNodeType extends NodeError {
+  constructor(exp, expected, form) {
+    const x = debug_repr(exp);
+    super(`Expected ${expected} in ${form}, got ${exp.$}.\nFull node: ${x}`);
+  }
+}
+
 export class UnknownNode extends NodeError {
   constructor(exp) {
     const x = debug_repr(exp);
