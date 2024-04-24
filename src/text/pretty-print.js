@@ -30,7 +30,7 @@ export function pretty_print(exp, indent = '') {
         60,
       );
     case 'block':
-      return `(begin${exp.subforms
+      return `(block${exp.subforms
         .map(f => `\n${indent2}${rec(f, indent2)}`)
         .join('')})`;
     case 'kcall':
