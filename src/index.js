@@ -17,6 +17,7 @@ import { pretty_print } from './text/pretty-print.js';
 import { debug_repr } from './utils/debug.js';
 import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
 import { find_tail_positions } from './compiler-passes/500-L-tail-calls.js';
+import { peephole } from './compiler-passes/500-peephole.js';
 
 const sample = fs.readFileSync('samples/random-shit-1.sample.lisp', {
   encoding: 'utf-8',
@@ -90,6 +91,9 @@ function visualize_pipeline(code) {
           console.log('tail call before', call.tail_pos.param_k, 'for', call.tail_pos, 'at', call);
         }
         console.log(pretty_print(cpsed));
+
+        print_header("peephole opts")
+        console.log(pretty_print(peephole(cpsed)));
       }
     } catch (e) {
       console.error('Error', e);
