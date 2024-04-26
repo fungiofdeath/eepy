@@ -35,7 +35,7 @@ export function pretty_print(exp, indent = '') {
         .join('')})`;
     case 'kcall':
     case 'call': {
-      const args = exp.args;
+      const args = [...exp.args];
       if (exp.arg_h) args.push(exp.arg_h);
       if (exp.arg_k) args.push(exp.arg_k);
       const kk = exp.$ === 'kcall' ? 'k ' : '';
@@ -70,7 +70,7 @@ export function pretty_print(exp, indent = '') {
     }
     case 'klambda':
     case 'lambda': {
-      const params = exp.params;
+      const params = [...exp.params];
       if (exp.param_h) params.push(exp.param_h);
       if (exp.param_k) params.push(exp.param_k);
       return partsfmt(
