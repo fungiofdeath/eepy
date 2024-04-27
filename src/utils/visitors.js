@@ -20,9 +20,16 @@ export function map_subforms(fn, exp, ...args) {
     case 'block':
       return { ...exp, subforms: exp.subforms.map(visit) };
     case 'call':
+      if (exp.arg_k?.$)
+        return {
+          ...exp,
+          fn: visit(exp.fn),
+          args: exp.args.map(visit),
+          arg_k: visit(exp.arg_k),
+        };
       return { ...exp, fn: visit(exp.fn), args: exp.args.map(visit) };
     case 'kcall':
-      return { ...exp, arg: visit(exp.arg) };
+      return { ...exp, args: exp.args.map(visit) };
     case 'if':
       return {
         ...exp,
@@ -32,6 +39,7 @@ export function map_subforms(fn, exp, ...args) {
       };
     case 'let':
     case 'let*':
+    case 'klabels':
     case 'labels':
     case 'letrec*':
       return {
@@ -42,15 +50,7 @@ export function map_subforms(fn, exp, ...args) {
         })),
         body: visit(exp.body),
       };
-    case 'klabels':
-      return {
-        ...exp,
-        binds: exp.binds.map(({ body, ...rest }) => ({
-          ...rest,
-          body: visit(body),
-        })),
-        body: visit(exp.body),
-      };
+    case 'klambda':
     case 'lambda':
       return { ...exp, body: visit(exp.body) };
     default:
