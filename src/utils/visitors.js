@@ -14,9 +14,8 @@ export function map_subforms(fn, exp, ...args) {
     case 'var':
       return exp;
     case 'set!':
+      if (exp.k?.$) return { ...exp, value: visit(exp.value), k: visit(exp.k) };
       return { ...exp, value: visit(exp.value) };
-    case 'set!-then':
-      return { ...exp, value: visit(exp.value), then: visit(exp.then) };
     case 'block':
       return { ...exp, subforms: exp.subforms.map(visit) };
     case 'call':

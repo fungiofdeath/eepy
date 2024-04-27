@@ -15,20 +15,15 @@ export function pretty_print(exp, indent = '') {
       return `${debug_repr(exp.value)}`;
     case 'var':
       return `${namefmt(exp.name)}`;
-    case 'set!':
+    case 'set!': {
+      const k = exp.k?.$ ? `\f${rec(exp.k, indent2)}` : '';
       return partsfmt(
-        `(set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)})`,
+        `(set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
         ' ',
         `\n${indent2}`,
         60,
       );
-    case 'set!-then':
-      return partsfmt(
-        `(set!-then ${namefmt(exp.name)}\f${rec(exp.value, indent2)}\f${rec(exp.then, indent2)})`,
-        ' ',
-        `\n${indent2}`,
-        60,
-      );
+    }
     case 'block':
       return `(block${exp.subforms
         .map(f => `\n${indent2}${rec(f, indent2)}`)

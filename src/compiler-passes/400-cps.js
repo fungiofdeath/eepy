@@ -43,12 +43,7 @@ function* _cps(exp, h, k) {
       return apply_continuation(k, exp);
     case 'set!': {
       const value = yield eval_intermediate(exp.value, h);
-      return {
-        $: 'set!-then',
-        name: exp.name,
-        value,
-        then: apply_continuation(k, value),
-      };
+      return { ...exp, value, k: apply_continuation(k, value), };
     }
     case 'block': {
       if (exp.subforms.length === 0) {
