@@ -16,7 +16,7 @@ export function pretty_print(exp, indent = '') {
     case 'var':
       return `${namefmt(exp.name)}`;
     case 'set!': {
-      const k = exp.k?.$ ? `\f${rec(exp.k, indent2)}` : '';
+      const k = exp.k ? `\f${namefmt(exp.k)}` : '';
       return partsfmt(
         `(set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
         ' ',

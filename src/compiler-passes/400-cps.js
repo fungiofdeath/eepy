@@ -42,8 +42,9 @@ function* _cps(exp, h, k) {
     case 'var':
       return apply_continuation(k, exp);
     case 'set!': {
+      const kwrap = yield wrap("set!", k);
       const value = yield eval_intermediate(exp.value, h);
-      return { ...exp, value, k: apply_continuation(k, value), };
+      return { ...exp, value, k: kwrap, };
     }
     case 'block': {
       if (exp.subforms.length === 0) {
@@ -70,8 +71,8 @@ function* _cps(exp, h, k) {
       };
     }
     case 'if': {
-      const cond = yield eval_intermediate(exp.cond, h);
       const kjoin = yield wrap('if', k);
+      const cond = yield eval_intermediate(exp.cond, h);
       return {
         ...exp,
         cond: cond,
