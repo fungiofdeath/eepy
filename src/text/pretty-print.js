@@ -16,9 +16,10 @@ export function pretty_print(exp, indent = '') {
     case 'var':
       return `${namefmt(exp.name)}`;
     case 'set!': {
+      const t = exp.tail_pos ? 'tail-call ' : '';
       const k = exp.k ? `\f${namefmt(exp.k)}` : '';
       return partsfmt(
-        `(set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
+        `(${t}set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
         ' ',
         `\n${indent2}`,
         60,
@@ -31,11 +32,12 @@ export function pretty_print(exp, indent = '') {
     case 'kcall':
     case 'call': {
       const args = [...exp.args];
+      const t = exp.tail_pos ? 'tail-call ' : '';
       if (exp.arg_h) args.push(exp.arg_h);
       if (exp.arg_k) args.push(exp.arg_k);
       const kk = exp.$ === 'kcall' ? 'k ' : '';
       const parts = args.map(f => `\f${rec(f, indent + ' ')}`).join('');
-      return `(${kk}${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
+      return `(${t}${kk}${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
     }
     case 'if':
       return partsfmt(
