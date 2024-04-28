@@ -110,7 +110,7 @@ function convert_form(exp, fn, args) {
     }
     case 'set!': {
       if (args.length !== 2) {
-        throw new NodeError(
+        throw new Error(
           `Invalid set!: Expected 2 arguments, got ${args
             .map(debug_repr)
             .join('; ')}`,
@@ -125,7 +125,7 @@ function convert_form(exp, fn, args) {
     }
     case 'if': {
       if (args.length < 2 || args.length > 3) {
-        throw new NodeError(
+        throw new Error(
           `Invalid if: Expected 1 or 2 arguments, got ${args
             .map(debug_repr)
             .join('; ')}`,
@@ -142,7 +142,7 @@ function convert_form(exp, fn, args) {
     case 'let*':
     case 'letrec*': {
       if (args.length < 2) {
-        throw new NodeError(
+        throw new Error(
           `Invalid ${fn.name}: expected bindings and body, got ${args
             .map(debug_repr)
             .join('; ')}`,
@@ -158,7 +158,7 @@ function convert_form(exp, fn, args) {
             return { name: bind.name, value: nil(bind.span) };
           } else if (bind.$ === 'list') {
             if (bind.items.length < 2) {
-              throw new NodeError(
+              throw new Error(
                 `Invalid binding in ${
                   fn.name
                 }: expected name and value, got ${debug_repr(bind)}`,
@@ -171,7 +171,7 @@ function convert_form(exp, fn, args) {
               };
             }
           } else {
-            throw new NodeError(
+            throw new Error(
               `Invalid binding in ${
                 fn.name
               }: expected atom or list, got ${debug_repr(bind)}`,
@@ -179,7 +179,7 @@ function convert_form(exp, fn, args) {
           }
         });
       } else {
-        throw new NodeError(
+        throw new Error(
           `Invalid ${
             fn.name
           }: bindings must be a list or nil, got ${debug_repr(args[0])}`,
@@ -191,7 +191,7 @@ function convert_form(exp, fn, args) {
     }
     case 'labels': {
       if (args.length < 2) {
-        throw new NodeError(
+        throw new Error(
           `Invalid labels: expected bindings and body, got ${args
             .map(debug_repr)
             .join('; ')}`,
@@ -205,7 +205,7 @@ function convert_form(exp, fn, args) {
         binds = args[0].items.map(bind => {
           if (bind.$ === 'list') {
             if (bind.items.length < 3) {
-              throw new NodeError(
+              throw new Error(
                 `Invalid binding in labels: expected name, parameters, and body, got ${debug_repr(
                   bind,
                 )}`,
@@ -222,7 +222,7 @@ function convert_form(exp, fn, args) {
                   name_of(item, 'labels'),
                 );
               } else {
-                throw new NodeError(
+                throw new Error(
                   `Invalid binding in labels: expected parameters list, got ${debug_repr(
                     bind.items[1],
                   )}`,
@@ -240,7 +240,7 @@ function convert_form(exp, fn, args) {
               };
             }
           } else {
-            throw new NodeError(
+            throw new Error(
               `Invalid binding in labels: expected list, got ${debug_repr(
                 bind,
               )}`,
@@ -248,7 +248,7 @@ function convert_form(exp, fn, args) {
           }
         });
       } else {
-        throw new NodeError(
+        throw new Error(
           `Invalid labels: bindings must be a list or nil, got ${debug_repr(
             args[0],
           )}`,
@@ -260,7 +260,7 @@ function convert_form(exp, fn, args) {
     }
     case 'lambda': {
       if (args.length < 2) {
-        throw new NodeError(
+        throw new Error(
           `Invalid lambda: expected parameters and body, got ${args
             .map(debug_repr)
             .join('; ')}`,
@@ -273,7 +273,7 @@ function convert_form(exp, fn, args) {
       } else if (args[0].$ === 'list') {
         params = args[0].items.map(param => name_of(param, 'lambda'));
       } else {
-        throw new NodeError(
+        throw new Error(
           `Invalid parameters list in lambda:, got ${debug_repr(args[0])}`,
         );
       }
