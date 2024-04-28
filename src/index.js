@@ -4,6 +4,7 @@ import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
 import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
 import { start_cps } from './compiler-passes/400-cps.js';
 import { flatten } from './compiler-passes/200-L-flatten-forms.js';
+import { name_lambdas } from './compiler-passes/125-name-lambdas.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
 import {
   Env,
@@ -51,8 +52,14 @@ function visualize_pipeline(code) {
           [...globals.undefined_vars].map(([_, v]) => v),
         );
 
+        print_header('naming lambdas');
+        const named = name_lambdas(resolved);
+        console.log('Named Lambdas');
+        // console.log(debug_repr(named));
+        console.log(pretty_print(named));
+
         print_header('normalize let forms');
-        const normalized = normalize_let_variants(resolved);
+        const normalized = normalize_let_variants(named);
         console.log('New AST');
         console.log(pretty_print(normalized));
 
