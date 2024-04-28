@@ -81,31 +81,6 @@ function* _cps(exp, h, k) {
       };
     }
     case 'let':
-    case 'let*': {
-      if (exp.binds.length === 0) return cps(exp.body, h, k);
-      const params = [];
-      const args = [];
-      for (const bind of exp.binds) {
-        const value = yield eval_intermediate(bind.value, h);
-        params.push(bind.name);
-        args.push(value);
-      }
-      const join = gensym(`join-${exp.$}`);
-      return {
-        $: 'klabels',
-        binds: [
-          {
-            name: join,
-            value: {
-              $: 'klambda',
-              params,
-              body: cps(exp.body, h, k),
-            },
-          },
-        ],
-        body: apply_continuation(join, ...args),
-      };
-    }
     case 'labels': {
       if (exp.binds.length === 0) return cps(exp.body, h, k);
       const binds = [];
@@ -125,6 +100,11 @@ function* _cps(exp, h, k) {
       const body = cps(exp.body, param_h, param_k);
       return apply_continuation(k, { ...exp, param_k, param_h, body });
     }
+    case 'let*':
+      // This is not added because its not currently needed, but its
+      // definitely implementable.
+      //
+      // fallthrough
     case 'letrec*':
       throw new InvalidNode(exp, 'cps');
     default:
