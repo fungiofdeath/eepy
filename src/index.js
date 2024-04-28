@@ -4,6 +4,7 @@ import { program } from 'commander';
 
 import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
 import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
+import { find_tail_positions } from './compiler-passes/500-L-tail-calls.js';
 import { flatten } from './compiler-passes/200-L-flatten-forms.js';
 import { name_lambdas } from './compiler-passes/125-name-lambdas.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
@@ -95,6 +96,13 @@ function visualize_pipeline(code) {
         print_header('continuation passing style');
         const cpsed = start_cps(depanalysis);
         console.log('CPS:');
+        console.log(pretty_print(cpsed));
+
+        print_header("finding tail calls");
+        const calls = find_tail_positions(cpsed, new Set(), '#%finish', '#%finish')
+        for (const [call] of calls.entries()) {
+          console.log('tail call before', call.tail_pos.param_k, 'for', call.tail_pos, 'at', call);
+        }
         console.log(pretty_print(cpsed));
       }
     } catch (e) {
