@@ -20,6 +20,8 @@
  *    the body of the lambda. To simplify things, we use a higher-order abstract
  *    syntax to represent the lambda (basically, instead of a object lambda we
  *    use a lambda in the meta language).
+ *  - Continuations can have a desired name, which occurs whenever the
+ *    continuation is bound to a name in the original source.
  *
  * This pass also uses an idea from this to convert the meta-CPSed code from (1)
  * into something closer to direct style:
@@ -36,13 +38,13 @@ export function start_cps(exp) {
   return cps(exp, '#%empty-handlers', '#%finish');
 }
 
-function* _cps(exp, h, k) {
+function* _cps(exp, h, k, desired_name=undefined) {
   switch (exp.$) {
     case 'literal':
     case 'var':
       return apply_continuation(k, exp);
     case 'set!': {
-      const kwrap = yield wrap("set!", k);
+      const kwrap = yield wrap("set!", k, desired_name);
       const value = yield eval_intermediate(exp.value, h);
       return { ...exp, value, k: kwrap, };
     }
@@ -53,7 +55,7 @@ function* _cps(exp, h, k) {
       for (let i = 0; i < exp.subforms.length - 1; ++i) {
         yield eval_intermediate(exp.subforms[i], h);
       }
-      return cps(exp.subforms[exp.subforms.length - 1], h, k);
+      return cps(exp.subforms[exp.subforms.length - 1], h, k, desired_name);
     }
     case 'call': {
       const fn = yield eval_intermediate(exp.fn, h);
@@ -67,11 +69,11 @@ function* _cps(exp, h, k) {
         fn,
         args,
         arg_h: { $: 'var', name: h },
-        arg_k: reify_continuation(concat_hints('call-', fn.name), k),
+        arg_k: reify_continuation(concat_hints('call-', fn.name), k, desired_name),
       };
     }
     case 'if': {
-      const kjoin = yield wrap('if', k);
+      const kjoin = yield wrap('if', k, desired_name);
       const cond = yield eval_intermediate(exp.cond, h);
       return {
         ...exp,
@@ -82,17 +84,15 @@ function* _cps(exp, h, k) {
     }
     case 'let':
     case 'labels': {
-      if (exp.binds.length === 0) return cps(exp.body, h, k);
       const binds = [];
       for (const bind of exp.binds) {
-        const converted = yield eval_intermediate(bind.value, h);
-        binds.push({ ...bind, value: converted });
+        const value = yield eval_intermediate(bind.value, h, bind.name);
+        if (value.name === bind.name) continue;
+        binds.push({ ...bind, value });
       }
-      return {
-        ...exp,
-        binds,
-        body: cps(exp.body, h, k),
-      };
+      const body = cps(exp.body, h, k);
+      if (binds.length === 0) return body;
+      return { ...exp, binds, body };
     }
     case 'lambda': {
       const param_h = gensym('handlers-continuation');
@@ -112,8 +112,8 @@ function* _cps(exp, h, k) {
   }
 }
 
-function cps(exp, h, k) {
-  return driver(_cps(exp, h, k), undefined, x => x);
+function cps(exp, h, k, desired_name=undefined) {
+  return driver(_cps(exp, h, k, desired_name), undefined, x => x);
 }
 
 /**
@@ -142,11 +142,11 @@ function apply_continuation(k, ...args) {
  * @param k a continuation
  * @returns a continuation expression that references k
  */
-function reify_continuation(type, k) {
+function reify_continuation(type, k, desired_name=undefined) {
   if (is_name(k)) {
     return { $: 'var', name: k };
   } else if (typeof k === 'function') {
-    const result = gensym(concat_hints(type, '-result'));
+    const result = desired_name || gensym(concat_hints(type, '-result'));
     return {
       $: 'klambda',
       params: [result],
@@ -186,9 +186,9 @@ function driver(generator, arg, then) {
  * @param h a handler name
  * @returns an atom representing the result of evaluating `exp`
  */
-function eval_intermediate(exp, h) {
+function eval_intermediate(exp, h, desired_name=undefined) {
   return function evaluate(cc) {
-    return cps(exp, h, cc);
+    return cps(exp, h, cc, desired_name);
   };
 }
 
@@ -200,7 +200,7 @@ function eval_intermediate(exp, h) {
  * @param k a continuation to be bound to a name
  * @returns a continuation name that, if invoked, will invoke `k`
  */
-function wrap(name, k) {
+function wrap(name, k, desired_name=undefined) {
   return function join(cc) {
     if (is_name(k)) {
       return cc(k);
@@ -211,7 +211,7 @@ function wrap(name, k) {
         binds: [
           {
             name: join,
-            value: reify_continuation(name, k),
+            value: reify_continuation(name, k, desired_name),
           },
         ],
         body: cc(join),
