@@ -43,6 +43,12 @@ function* _cps(exp, h, k, desired_name=undefined) {
     case 'literal':
     case 'var':
       return apply_continuation(k, exp);
+    case 'lambda': {
+      const param_h = gensym('handlers-continuation');
+      const param_k = gensym('return-continuation');
+      const body = cps(exp.body, param_h, param_k);
+      return apply_continuation(k, { ...exp, param_k, param_h, body });
+    }
     case 'set!': {
       const kwrap = yield wrap("set!", k, desired_name);
       const value = yield eval_intermediate(exp.value, h);
@@ -93,12 +99,6 @@ function* _cps(exp, h, k, desired_name=undefined) {
       const body = cps(exp.body, h, k);
       if (binds.length === 0) return body;
       return { ...exp, binds, body };
-    }
-    case 'lambda': {
-      const param_h = gensym('handlers-continuation');
-      const param_k = gensym('return-continuation');
-      const body = cps(exp.body, param_h, param_k);
-      return apply_continuation(k, { ...exp, param_k, param_h, body });
     }
     case 'let*':
       // This is not added because its not currently needed, but its
