@@ -175,7 +175,7 @@ function reduce_scc_to_ast(span) {
 function simplep(exp) {
   switch (exp.$) {
     // we dont need to worry about lets, as they cant ever appear in a binding
-    // due to the earlier flatten step
+    // due to the earlier combination step
     case 'literal':
     case 'var':
       return true;
