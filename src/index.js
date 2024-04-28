@@ -15,6 +15,7 @@ import { parse } from './text/parse.js';
 import { pretty_print } from './text/pretty-print.js';
 import { debug_repr } from './utils/debug.js';
 import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
+import { find_tail_positions } from './compiler-passes/500-L-tail-calls.js';
 
 const sample = fs.readFileSync('samples/random-shit-1.sample.lisp', {
   encoding: 'utf-8',
@@ -74,6 +75,13 @@ function visualize_pipeline(code) {
         print_header("continuation passing style");
         const cpsed = start_cps(depanalysis);
         console.log('CPS:');
+        console.log(pretty_print(cpsed));
+
+        print_header("finding tail calls");
+        const calls = find_tail_positions(cpsed, new Set(), '#%finish', '#%finish')
+        for (const [call] of calls.entries()) {
+          console.log('tail call before', call.tail_pos.param_k, 'for', call.tail_pos, 'at', call);
+        }
         console.log(pretty_print(cpsed));
       }
     } catch (e) {
