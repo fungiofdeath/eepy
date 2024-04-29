@@ -29,7 +29,6 @@ export function resolve_names(exp, env) {
           ...rest,
           name: new_name,
           value: new_value,
-          free_vars: value_env.free_vars,
         };
       });
       const body_env = let_env.new_scope();
@@ -37,7 +36,6 @@ export function resolve_names(exp, env) {
         ...exp,
         binds: new_binds,
         body: resolve_names(exp.body, body_env),
-        free_vars: body_env.free_vars,
       };
     }
     case 'let*': {
@@ -52,7 +50,6 @@ export function resolve_names(exp, env) {
           ...rest,
           name: new_name,
           value: new_value,
-          free_vars: value_env.free_vars,
         };
       });
       const body_env = inner_env.new_scope();
@@ -60,7 +57,6 @@ export function resolve_names(exp, env) {
         ...exp,
         binds: new_binds,
         body: resolve_names(exp.body, body_env),
-        free_vars: body_env.free_vars,
       };
     }
     case 'labels':
@@ -78,7 +74,6 @@ export function resolve_names(exp, env) {
           ...rest,
           name: new_name,
           value: resolve_names(value, bind_env),
-          free_vars: bind_env.free_vars,
         };
       });
       const body_env = total_env.new_scope();
@@ -86,7 +81,6 @@ export function resolve_names(exp, env) {
         ...exp,
         binds: new_binds,
         body: resolve_names(exp.body, body_env),
-        free_vars: body_env.free_vars,
       };
     }
     case 'lambda': {
@@ -96,7 +90,6 @@ export function resolve_names(exp, env) {
         ...exp,
         params: new_params,
         body: resolve_names(exp.body, lambda_env),
-        free_vars: lambda_env.free_vars,
       };
     }
   }
@@ -114,8 +107,6 @@ export class Env {
     this.global_scope = global_scope;
     /** @type {Map} */
     this.bindings = new Map();
-    /** @type {Set} */
-    this.free_vars = new Set();
   }
 
   new_scope = () => {
@@ -130,15 +121,7 @@ export class Env {
       if (has) break;
       find_cursor = find_cursor.parent;
     }
-    if (!has) return this.global_scope.mark_undefined_var(name);
-    // update intermediate scopes
-    let update_cursor = this;
-    while (update_cursor !== find_cursor) {
-      update_cursor.free_vars.add(has);
-      update_cursor = update_cursor.parent;
-    }
-
-    return has;
+    return has || this.global_scope.mark_undefined_var(name);
   };
 
   bind = name => {

@@ -10,6 +10,7 @@
  *  - https://legacy.cs.indiana.edu/~dyb/pubs/letrec-reloaded.pdf
  */
 
+import { free_variables } from '../utils/free-variables.js';
 import { map_subforms } from '../utils/visitors.js';
 
 export function compile_letrec(exp) {
@@ -19,6 +20,7 @@ export function compile_letrec(exp) {
       return exp;
     case 'letrec*':
       const { binds, body } = exp;
+      binds.forEach(bind => bind.free_vars = free_variables(bind.value));
       const complexp = bind => classify_binding(binds, bind) === 'complex';
       // maps names -> vertex objects. vertex objects contain the binding and
       // its index
