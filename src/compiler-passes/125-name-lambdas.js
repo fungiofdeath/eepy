@@ -17,7 +17,6 @@ function lift_lambdas(exp, to = []) {
         name,
         value: new_exp,
         span: exp.span,
-        free_vars: exp.free_vars,
       });
       return { $: 'var', name, span: exp.span };
     }
