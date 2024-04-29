@@ -25,5 +25,8 @@
     "tabWidth": 2,
     "trailingComma": "all",
     "useTabs": false
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
   }
 }
