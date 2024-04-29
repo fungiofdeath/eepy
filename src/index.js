@@ -1,28 +1,42 @@
 import fs from 'node:fs';
 
+import { program } from 'commander';
+
 import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
 import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
-import { start_cps } from './compiler-passes/400-cps.js';
 import { flatten } from './compiler-passes/200-L-flatten-forms.js';
 import { name_lambdas } from './compiler-passes/125-name-lambdas.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
+import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
+import { start_cps } from './compiler-passes/400-cps.js';
 import {
   Env,
   Globals,
   resolve_names,
 } from './compiler-passes/100-name-resolution.js';
 
+import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
 import { pretty_print } from './text/pretty-print.js';
-import { debug_repr } from './utils/debug.js';
-import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
 
-const sample = fs.readFileSync('samples/random-shit-1.sample.lisp', {
-  encoding: 'utf-8',
-  flag: 'r',
-});
+program
+  .name('eepy')
+  .description('An eeepy language for silly, tired kitties')
+  .version('1.0.0');
 
-visualize_pipeline(sample);
+program.command('pipeline')
+  .description('Show the compilation pipeline for a target file')
+  .argument('<path>', 'Path to the file')
+  .option('--encoding <encoding>', 'Encoding the file uses', 'utf8')
+  .action((path, { encoding }) => {
+    const file = fs.readFileSync(path, {
+      encoding,
+      flag: 'r',
+    });
+    visualize_pipeline(file);
+  });
+
+program.parse();
 
 function visualize_pipeline(code) {
   const errors = [];
@@ -78,7 +92,7 @@ function visualize_pipeline(code) {
         console.log('Compiled-out:');
         console.log(pretty_print(depanalysis));
 
-        print_header("continuation passing style");
+        print_header('continuation passing style');
         const cpsed = start_cps(depanalysis);
         console.log('CPS:');
         console.log(pretty_print(cpsed));
