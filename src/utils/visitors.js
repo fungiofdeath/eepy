@@ -23,11 +23,12 @@ export function map_subforms(fn, exp, ...args) {
           ...exp,
           fn: visit(exp.fn),
           args: exp.args.map(visit),
+          arg_h: visit(exp.arg_h),
           arg_k: visit(exp.arg_k),
         };
       return { ...exp, fn: visit(exp.fn), args: exp.args.map(visit) };
     case 'kcall':
-      return { ...exp, args: exp.args.map(visit) };
+      return { ...exp, fn: visit(exp.fn), args: exp.args.map(visit) };
     case 'if':
       return {
         ...exp,
