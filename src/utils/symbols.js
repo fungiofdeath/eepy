@@ -33,3 +33,6 @@ export function concat_hints(...parts) {
   }
   return strings.join('');
 }
+
+export const finish = gensym('#%finish');
+export const empty_handlers = gensym('#%empty-handlers');

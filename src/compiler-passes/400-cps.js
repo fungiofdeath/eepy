@@ -32,10 +32,10 @@
 
 import { debug_repr } from '../utils/debug.js';
 import { InvalidNode, UnknownNode } from '../utils/errors.js';
-import { gensym, is_name, concat_hints } from '../utils/symbols.js';
+import { gensym, is_name, concat_hints, empty_handlers, finish } from '../utils/symbols.js';
 
 export function start_cps(exp) {
-  return cps(exp, '#%empty-handlers', '#%finish');
+  return cps(exp, empty_handlers, finish);
 }
 
 function* _cps(exp, h, k, desired_name=undefined) {
