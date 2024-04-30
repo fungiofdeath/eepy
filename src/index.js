@@ -10,6 +10,7 @@ import { flatten } from './compiler-passes/300-flatten-forms.js';
 import { compile_letrec } from './compiler-passes/400-compile-letrec.js';
 import { start_cps } from './compiler-passes/500-cps.js';
 import { find_tail_positions } from './compiler-passes/500-L-tail-calls.js';
+import { contify } from './compiler-passes/600-contification.js';
 
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
@@ -100,6 +101,8 @@ function visualize_pipeline(code) {
         console.log('tail call before', call.tail_pos.param_k, 'for', call.tail_pos, 'at', call);
       }
       console.log(pretty_print(cpsed));
+
+      const contified = contify(cpsed);
     } catch (e) {
       console.error('Error', e);
     }

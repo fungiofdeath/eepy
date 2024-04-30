@@ -11,6 +11,7 @@ export function find_tail_positions(exp, call_nodes = new Set(), current_functio
       return call_nodes;
     case 'call':
       exp.tail_pos = false;  // reset
+      exp.containing_function = current_function;
       if (exp.arg_k?.$ === 'var' && exp.arg_k.name === current_return_continuation) {
         exp.tail_pos = current_function;
         call_nodes.add(exp);
@@ -19,6 +20,7 @@ export function find_tail_positions(exp, call_nodes = new Set(), current_functio
       return call_nodes;
     case 'kcall':
       exp.tail_pos = false;  // reset
+      exp.containing_function = current_function;
       if (exp.fn.name === current_return_continuation) {
         exp.tail_pos = current_function;
         call_nodes.add(exp);
