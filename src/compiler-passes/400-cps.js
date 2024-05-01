@@ -64,7 +64,7 @@ function* _cps(exp, h, k, desired_name=undefined) {
       return cps(exp.subforms[exp.subforms.length - 1], h, k, desired_name);
     }
     case 'call': {
-      const kwrap = yield wrap('set!', k, desired_name);
+      const kwrap = yield wrap(exp.fn.name, k, desired_name);
       const fn = yield eval_intermediate(exp.fn, h);
       const args = [];
       for (const arg of exp.args) {
