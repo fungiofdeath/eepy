@@ -1,109 +1,167 @@
+import { debug_repr } from '../utils/debug.js';
+import { find_sccs } from '../utils/scc.js';
 import { map_subforms } from '../utils/visitors.js';
 
-export function contify() {
-  // collect stuffies
-  // find all calls
-  // find all dead functions
-  // remove tail calls from calls
-  // for each function, check that all of its calls are equal
-  // if true: contify
-  // repeat
+// todo: ensure that find_sccs does not mutate name objects. consider using
+//       id wrappers
+// todo: clean up return values from analyze_labels. specifically,
+//       calls has a confusing type because `.from` should probably be something
+//       like `function_chain`
+// todo: rename analyze_labels because its also run on let
+// todo: make the big loop not suck
+// todo: make letrec* use the new find_sccs
+// todo: make the continuation parameter to set! an expression as its not a
+//       binding
+// todo: inline tail call detection here instead of using a separate pass as
+//       this makes the decoupling of passes easier
+// todo: visit set! continuation when finding uses.
+//       this is needed for the following:
+// todo: add letcont bindings when functions are contifiable
+// todo: consider adding a DAG visitor to preserve mutations
 
-  const functions = new Set();  // function names
-  const references = new Map(); // function name -> parent node of var
-  const funargs = new Map();    // function name -> nodes containing the name as an argument
-  const calls = new Map();      // function name -> call { node, parent_function }s
-
-  // due to letrec* compilation, the sccs are stored in labels nodes
-  const sccs = new Map(); // function name -> (scc:) List[function name]
-
-  const alive = function_name => references.has(function_name);
-
-  for (const scc of sccs) {
-    const F = new Set();
-    for (const f of scc) {
-      for (const g of scc) {
-        // were all calls to F either a tail call or have the same continuations
-        let in_F = true;
-        let firstk, firsth;
-        // note the reversed order because we're looking for calls to f
-        for (const call of calls2(g, f)) {
-          if (!call.tail_call) {
-            if (!firstk) {
-              // first call, always passes
-              firstk = call.arg_k;
-              firsth = call.arg_j;
-            } else if (call.arg_k !== firstk || call.arg_h !== firsth) {
-              // failed to equal
-              in_F = false;
-              break;
-            }
-          }
-        }
-        if (in_F) {
-          F.add(f);
-        }
-      }
+export function contify(exp) {
+  map_subforms(contify, exp);
+  let finished = false;
+  while (!finished) {
+    switch (exp.$) {
+      case 'let':
+      case 'labels':
+        finished = contify_bindings(exp);
+        break;
+      default:
+        finished = true;
+        break;
     }
-    for (const f of F) {
-      for (const { node, parent_function } of calls.get(f) ?? []) {
-        if 
+  }
+  return exp;
+}
+
+function contify_bindings(exp) {
+  // these are the names of the bindings it creates
+  // and all the calls to these functions
+  const { bindings, functions, calls, references } = analyze_labels(exp);
+
+  // inner edges representing tail calls between bindings
+  const edges = new Map();
+  for (const [target, called_by] of calls.entries()) {
+    for (const { node, from: function_chain } of called_by) {
+      if (node.tail_pos) {
+        const fn = function_chain[0];
+        edges.set(fn, edges.get(fn)?.add(target) ?? new Set([target]));
       }
     }
   }
-  function calls2(f, g) {} // returns the set of calls from f -> g
-  function tcssc(scc) {}
+
+  console.dir(
+    [...calls.entries()].map(([name, froms]) => ({
+      name,
+      froms: froms.map(({ from }) => from),
+    })),
+    { depth: 5 },
+  );
+  console.log({ functions, edges });
+  const tail_call_sccs = find_sccs(functions, edges);
+  console.log({ functions, edges, tail_call_sccs });
+
+  for (const scc of tail_call_sccs) {
+    const contifiable = [];
+    let called_from_binding = false;
+    let called_from_body = false;
+
+    let firstk, firsth;
+    for (const f of scc) {
+      const fcalls = calls.get(f) ?? [];
+      if (
+        fcalls.every(({ node, from }) => {
+          const used_in_binding = from.find(name => functions.includes(name));
+          if (used_in_binding) {
+            called_from_binding = used_in_binding;
+          } else {
+            called_from_body = true;
+          }
+
+          if (scc.includes(from[0]) && node.tail_pos) {
+            return true;
+          } else if (firstk === undefined) {
+            firstk = node.arg_k.name;
+            firsth = node.arg_h.name;
+            return true;
+          } else {
+            return firstk === node.arg_k.name && firsth === node.arg_h.name;
+          }
+        })
+      ) {
+        contifiable.push(f);
+      }
+    }
+
+    //
+    if (contifiable.length && called_from_binding) {
+    } else if (contifiable.length && called_from_body) {
+    }
+    console.log({ contifiable, called_from_binding, called_from_body });
+  }
+
+  // eliminate dead code
+  const dead_bindings = bindings.filter(name => !references.has(name));
+  for (let i = 0; i < exp.binds.length; ++i) {
+    if (dead_bindings.includes(exp.binds[i].name)) {
+      exp.binds.splice(i, 1);
+    }
+  }
+
+  // console.log('bindings', debug_repr(bindings));
+  // console.log('references', debug_repr(references));
+  console.dir({ sccs: tail_call_sccs, dead_bindings }, { depth: 5 });
+  return dead_bindings.length === 0;
 }
 
-// export function contify(exp) {
-//   const calls = new Map();
-//   const usages = new Map();
-//   const bindings = new Map();
-//   const defs = new Map();
-//   const sets = new Map();
-//   const dag = gather_data(exp, undefined, calls, usages, bindings, defs, sets);
+function analyze_labels(exp) {
+  if (exp.$ !== 'labels' && exp.$ !== 'let') {
+    throw new Error('IERR analyze_labels called with incorrect form: ' + exp.$);
+  }
 
-//   const vertices = [];
-//   const edges = [];
+  const bindings = exp.binds.map(bind => bind.name);
+  const functions = exp.binds.flatMap(bind =>
+    bind.value.$ === 'lambda' ? [bind.name] : [],
+  );
+  const calls = new Map(); // function names -> { node from } list
+  const references = new Map(); // variable name -> parent node list
 
-//   for (const [_, bind] of bindings) {
-//     if (bind.value.$ !== 'lambda') continue;
-//     vertices.push(bind);
-//   }
+  function iter(exp, function_chain = [], parent_node = undefined) {
+    switch (exp.$) {
+      case 'let':
+      case 'labels':
+        for (const bind of exp.binds) {
+          if (bind.value.$ === 'lambda') {
+            iter(bind.value, [bind.name, ...function_chain], exp);
+          } else {
+            iter(bind.value, function_chain, exp);
+          }
+        }
+        iter(exp.body, function_chain, exp);
+        break;
+      case 'call':
+        if (functions.includes(exp.fn.name)) {
+          add_to(calls, exp.fn.name, { node: exp, from: function_chain });
+        }
+        map_subforms(iter, exp, function_chain, exp);
+        break;
+      case 'var':
+      case 'set!':
+        if (bindings.includes(exp.name)) {
+          references.set(exp.name, parent_node);
+        }
+        break;
+      default:
+        map_subforms(iter, exp, function_chain, exp);
+        break;
+    }
+  }
+  iter(exp);
 
-//   // const funargs = new Set();
-//   // const always_same_k = new Map();
-//   // for (const [name, call_exps] of calls.entries()) {
-//   //   for (const use of usages.get(name) ?? []) {
-//   //     if (
-//   //       use.parent.$ !== 'call' ||
-//   //       use.args.some(arg => arg.$ === 'var' && arg.name === name)
-//   //     ) {
-//   //       funargs.add(name);
-//   //     }
-//   //   }
-//   //   const k0 = call_exps[0].arg_k.name;
-//   //   const has_always_same_k = call_exps
-//   //     .slice(1)
-//   //     .every(call => call.arg_k.name === k0);
-//   //   if (has_always_same_k) {
-//   //     always_same_k.set(name, k0);
-//   //   }
-//   // }
-
-//   // console.dir(
-//   //   {
-//   //     calls: [...calls.entries()].map(([name, calls], idx) => ({
-//   //       idx,
-//   //       name,
-//   //       calls: calls.length,
-//   //     })),
-//   //   },
-//   //   { depth: 10 },
-//   // );
-//   // console.dir([...calls.entries()][27], { depth: 4 });
-//   // console.log('Contifying', always_same_k);
-// }
+  return { bindings, functions, calls, references };
+}
 
 function add_to(map, name, value) {
   let found = map.get(name);
@@ -114,81 +172,3 @@ function add_to(map, name, value) {
   found.push(value);
 }
 
-function gather_data(
-  exp,
-  parent = () => {},
-  parent_function = () => {},
-  calls = new Map(),
-  usages = new Map(),
-  bindings = new Map(),
-  defs = new Map(),
-  sets = new Map(),
-) {
-  const dostuff = (x, is_parent_function = false) => {
-    const nodes = [];
-    const pfnodes = [];
-    const set_parent = node => nodes.push(node);
-    const set_parent_function = node => pfnodes.push(node);
-    const mapped = map_subforms(
-      gather_data,
-      x,
-      set_parent,
-      is_parent_function ? set_parent_function : parent_function,
-      calls,
-      usages,
-      bindings,
-      sets,
-    );
-    ref.node = mapped;
-    parent(mapped);
-    parent_function(mapped);
-    nodes.forEach(node => node.parent = mapped);
-    pfnodes.forEach(node => node.parent_function = mapped);
-    return dostuff;
-  };
-  const ref = {};
-  exp = map_subforms(
-    gather_data,
-    exp,
-    ref,
-    parent_function,
-    calls,
-    usages,
-    bindings,
-    sets,
-  );
-  ref.node = exp;
-  exp.parent = parent;
-  exp.parent_function = parent_function;
-  switch (exp.$) {
-    case 'var':
-      add_to(usages, exp.name, exp);
-      return exp;
-    case 'set!':
-      add_to(sets, exp.name, exp);
-      return exp;
-    case 'call':
-      add_to(calls, exp.fn.name, exp);
-      return exp;
-    case 'let':
-    case 'labels':
-    case 'klabels':
-      exp.binds.forEach(bind => {
-        add_to(bindings, bind.name, bind);
-        add_to(defs, bind.name, exp);
-        bind.parent = exp;
-      });
-      return exp;
-    case 'lambda':
-    case 'klambda':
-      exp.params.forEach(param => {
-        add_to(defs, param, exp);
-      });
-      return exp;
-    case 'let*':
-    case 'letrec*':
-      throw new InvalidNode(exp, 'contification');
-    default:
-      return exp;
-  }
-}

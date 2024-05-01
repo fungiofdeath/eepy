@@ -103,6 +103,7 @@ function visualize_pipeline(code) {
       console.log(pretty_print(cpsed));
 
       const contified = contify(cpsed);
+      console.log(pretty_print(contified));
     } catch (e) {
       console.error('Error', e);
     }
