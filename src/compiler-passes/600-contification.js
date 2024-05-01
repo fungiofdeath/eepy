@@ -14,6 +14,7 @@ import { map_subforms } from '../utils/visitors.js';
 //       binding
 // todo: inline tail call detection here instead of using a separate pass as
 //       this makes the decoupling of passes easier
+// todo: filter recursive bindings from `called_from_binding`
 // todo: visit set! continuation when finding uses.
 //       this is needed for the following:
 // todo: add letcont bindings when functions are contifiable
@@ -95,7 +96,8 @@ function contify_bindings(exp) {
       }
     }
 
-    //
+    // TODO TODO TODO TODO
+    // TODO filter recursive bindings from `called_from_binding`
     if (contifiable.length && called_from_binding) {
     } else if (contifiable.length && called_from_body) {
     }
