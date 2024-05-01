@@ -1,5 +1,6 @@
 import { debug_repr } from '../utils/debug.js';
 import { find_sccs } from '../utils/scc.js';
+import { gensym } from '../utils/symbols.js';
 import { map_subforms } from '../utils/visitors.js';
 
 // todo: ensure that find_sccs does not mutate name objects. consider using
@@ -61,6 +62,7 @@ function contify_bindings(exp) {
     { depth: 5 },
   );
   console.log({ functions, edges });
+  let contified = false;
   const tail_call_sccs = find_sccs(functions, edges);
   console.log({ functions, edges, tail_call_sccs });
 
@@ -98,6 +100,53 @@ function contify_bindings(exp) {
 
     // TODO TODO TODO TODO
     // TODO filter recursive bindings from `called_from_binding`
+    if (contifiable.length && !called_from_binding && called_from_body) {
+      const deepClone = exp => {
+        exp = map_subforms(deepClone, exp);
+        return { ...exp };
+      };
+
+      const flambda = exp.binds.find(
+        bind => bind.name === contifiable[0],
+      ).value;
+      const fbody = deepClone(flambda.body);
+      const kname = gensym(contifiable[0].name);
+      const kbody = flambda.body;
+      const kparam = flambda.param_k;
+      const hparam = flambda.param_h;
+
+      // Put the cloned body into the body
+      flambda.body = fbody;
+
+      console.dir(firstk);
+      // Mutate kparam
+      references.get(kparam).arg_k = { $: 'var', name: firstk };
+      // Mutate hparam
+      references.get(hparam).arg_h = { $: 'var', name: firsth };
+      // Mutate body to point to the new klambda
+      calls.get(contifiable[0]).forEach(({ node: call }) => {
+        console.dir(call, { depth: 5 });
+        call.$ = 'kcall';
+        call.fn = { $: 'var', name: kname };
+        delete call.arg_h;
+        delete call.arg_k;
+      });
+
+      // Use the original fbody as a kbody
+      exp.body = {
+        $: 'klabels',
+        binds: [
+          {
+            name: kname,
+            value: { $: 'klambda', params: flambda.params, body: kbody },
+          },
+        ],
+        body: exp.body,
+      };
+
+      contified = true;
+    }
+
     if (contifiable.length && called_from_binding) {
     } else if (contifiable.length && called_from_body) {
     }
@@ -115,7 +164,7 @@ function contify_bindings(exp) {
   // console.log('bindings', debug_repr(bindings));
   // console.log('references', debug_repr(references));
   console.dir({ sccs: tail_call_sccs, dead_bindings }, { depth: 5 });
-  return dead_bindings.length === 0;
+  return !contified && dead_bindings.length === 0;
 }
 
 function analyze_labels(exp) {
@@ -147,6 +196,8 @@ function analyze_labels(exp) {
         if (functions.includes(exp.fn.name)) {
           add_to(calls, exp.fn.name, { node: exp, from: function_chain });
         }
+        references.set(exp.arg_h.name, exp);
+        references.set(exp.arg_k.name, exp);
         map_subforms(iter, exp, function_chain, exp);
         break;
       case 'var':
