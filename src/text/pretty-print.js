@@ -85,6 +85,10 @@ export function pretty_print(exp, indent = '') {
 function namefmt(name) {
   if (typeof name === 'string') {
     return name;
+  } else if (typeof name === 'object' && name.$ === 'qatom') {
+    return name.modules.map(mod => namefmt(mod.name)).join('.');
+  } else if (typeof name === 'object' && name.$ === 'atom') {
+    return namefmt(name.name);
   } else if (typeof name === 'object' && name.$ !== undefined) {
     throw new Error(`Invalid name ${debug_repr(name)}`);
   } else if (typeof name === 'object' && name.name) {

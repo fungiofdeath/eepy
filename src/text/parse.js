@@ -13,7 +13,8 @@
  *  { $: 'list', items: Expr[], span: Span } |
  *  { $: 'infix', items: Expr[], span: Span } |
  *  { $: 'record', items: Expr[], span: Span } |
- *  { $: 'error', exp: Expr | Token, span: Span }
+ *  { $: 'error', exp: Expr | Token, span: Span } |
+ *  { $: 'qatom', path: { name: string, span Span }[], relative: boolean, span: Span }
  * } Expr
  */
 
@@ -305,6 +306,55 @@ function parse_quotation(stream, errors=[]) {
 }
 
 /**
+ * @param {Token} atom
+ * @param {Array} errors mutated in the event of an error
+ * @returns {Expr}
+ */
+function parse_atom(atom, errors) {
+  if (atom.$ !== 'atom') {
+    errors.push(new InternalError('Provided argument was not an atom', atom.span));
+    return error(atom);
+  }
+
+  const number_test = /^[\-+]?[_.]*[0-9]+[0-9_.]*$/;
+  const valid_number_test =
+    /^[\-+]?(?:[0-9]+(?:_+[0-9]+)*(?:\.[0-9]+(?:_+[0-9]+)*)?|\.[0-9]+(?:_+[0-9]+)*)$/;
+
+  if (number_test.test(atom.text)) {
+    const number = { $: 'number', value: atom.text, span: atom.span };
+    if (valid_number_test.test(atom.text)) {
+      return number;
+    }
+    errors.push(new InvalidFormatError(atom));
+    return error(number);
+  }
+
+  // note: atoms cannot be multiline
+  const parts_sublex = /(?:\.+|[^\.]+)/dg;
+  const parts = [...atom.text.toString().matchAll(parts_sublex)];
+  if (parts.length === 0) {
+    errors.push(new InternalError('Atom is empty', atom.span));
+    return error(atom);
+  } else if (parts.length === 1) {
+    return { $: 'atom', name: atom.text, span: atom.span };
+  }
+
+  // parse qualified atom
+  let relative = false;
+  const path = [];
+  if (parts[0][0].startsWith('.')) {
+    relative = true;
+    parts.shift();
+  }
+  while (parts.length) {
+    const part = parts.shift();
+    if (part[0].startsWith('.')) continue;
+    path.push({ name: part[0], span: part.indices });
+  }
+  return { $: 'qatom', path, relative, span: atom.span }
+}
+
+/**
  * @param {TokenPeek} stream
  * @returns {Expr}
  */
@@ -332,17 +382,7 @@ function parse_exp(stream, errors=[]) {
     return { $: 'string', value: tok.text, span: tok.span };
   }
   if (tok.$ === 'atom') {
-    const number_test = /^[\-+]?[_.]*[0-9]+[0-9_.]*$/;
-    const valid_number_test = /^[\-+]?(?:[0-9]+(?:_+[0-9]+)*(?:\.[0-9]+(?:_+[0-9]+)*)?|\.[0-9]+(?:_+[0-9]+)*)$/;
-    if (number_test.test(tok.text)) {
-      const number = { $: 'number', value: tok.text, span: tok.span };
-      if (valid_number_test.test(tok.text)) {
-        return number;
-      }
-      errors.push(new InvalidFormatError(tok));
-      return error(number);
-    }
-    return { $: 'atom', name: tok.text, span: tok.span };
+    return parse_atom(tok, errors);
   }
 
   errors.push(new InternalError('Unknown token type', tok.span));
