@@ -1,7 +1,7 @@
 import { debug_repr } from '../utils/debug.js';
 import { find_sccs } from '../utils/scc.js';
 import { gensym } from '../utils/symbols.js';
-import { map_subforms } from '../utils/visitors.js';
+import { map_parts1, map_subforms } from '../utils/visitors.js';
 
 // todo: ensure that find_sccs does not mutate name objects. consider using
 //       id wrappers
@@ -20,6 +20,56 @@ import { map_subforms } from '../utils/visitors.js';
 //       this is needed for the following:
 // todo: add letcont bindings when functions are contifiable
 // todo: consider adding a DAG visitor to preserve mutations
+
+export function contify(exp) {
+  let current = exp;
+  let finished = false;
+  while (!finished) {
+    switch (exp.$) {
+      case 'let':
+      case 'labels':
+        [current, finished] = contify_binder(exp);
+        break;
+      default:
+        finished = true;
+        break;
+    }
+  }
+  return current;
+}
+
+function contify_binder(exp) {
+  exp = contify_stuff(exp);
+  exp = eliminate_dead_code(exp);
+}
+
+function contify_stuff(exp) {
+  const vertices = new Set();
+  const edges = new Map();
+  function count_edges(exp) {
+    switch (exp.$) {
+      case 'call':
+        if (exp.tail_call) {
+          vertices.add(exp.tail_call);
+          vertices.add(exp.fn);
+          if (!edges.get(exp.tail_call)) {
+            edges.set(exp.tail_call, new Set());
+          }
+          edges.get(exp.tail_call).add(exp.fn);
+        }
+        break;
+      default:
+        return map_subforms(count_edges, exp);
+    }
+  }
+  count_edges(exp);
+
+  const tail_sccs = find_sccs([...vertices.values()], edges);
+  for (const scc of tail_sccs) {
+    const contifiable = [];
+  }
+}
+function eliminate_dead_code() {}
 
 export function contify(exp) {
   map_subforms(contify, exp);
@@ -41,6 +91,10 @@ export function contify(exp) {
 function contify_bindings(exp) {
   // these are the names of the bindings it creates
   // and all the calls to these functions
+  // bindings    :  name list
+  // functions   :  name list  // bindings filtered to only contain lambdas
+  // calls       :  function names -> { node; from } list
+  // references  :  variable name -> parent node list
   const { bindings, functions, calls, references } = analyze_labels(exp);
 
   // inner edges representing tail calls between bindings
@@ -176,7 +230,7 @@ function analyze_labels(exp) {
   const functions = exp.binds.flatMap(bind =>
     bind.value.$ === 'lambda' ? [bind.name] : [],
   );
-  const calls = new Map(); // function names -> { node from } list
+  const calls = new Map(); // function names -> { node; from } list
   const references = new Map(); // variable name -> parent node list
 
   function iter(exp, function_chain = [], parent_node = undefined) {

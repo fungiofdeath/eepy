@@ -1,58 +1,91 @@
 import { UnknownNode } from './errors.js';
 
 /**
- * Transforms the subforms of `exp` via `fn(subforms, ...args)`.
- * @param exp An expression
- * @param args Extra arguments for `fn`, in addition to the subform argument
- * @throws {UnknownNode} when `exp` is not a valid node type.
+ * Transform the various parts of the form according to the provided configs.
+ *
+ * These functions are only run on the internal parts of `exp`. `config.exp` is
+ *  not invoked on `exp`
+ *
+ * Each name `name_part` is transformed into `config.names(name_part)`.
+ * Each expression `exp_part` is transformed into `config.exps(exp_part)`.
+ * Each binding `bind_part` is transformed into `config.binds(bind_part)`.
+ *
+ * This only maps a single level deep, it does not traverse into parts of parts.
+ * For example, it will not traverse into names or values inside of bindings,
+ *  and will not traverse into names or values inside of sub-expressions.
+ *
+ * @template Name, Exp
+ *
+ * @param {{
+ *  names: (name: Name) => Name,
+ *  exps: (exp: Exp) => Exp,
+ *  binds: (bind: { name: Name, value: Exp }) => { name: Name, value: Exp }
+ * }} config
+ * @param {Exp} exp
+ * @returns {Exp}
  */
-export function map_subforms(fn, exp, ...args) {
-  const visit = x => fn(x, ...args);
+export function map_parts1(config, exp) {
+  const { names, exps, binds } = config;
   switch (exp.$) {
     case 'literal':
       return exp;
     case 'var':
-      return exp;
+      return { ...exp, name: names(exp.name) };
     case 'set!':
-      return { ...exp, value: visit(exp.value) };
-    case 'block':
-      return { ...exp, subforms: exp.subforms.map(visit) };
-    case 'call':
-      if (exp.arg_k?.$)
+      if (exp.k) {
         return {
           ...exp,
-          fn: visit(exp.fn),
-          args: exp.args.map(visit),
-          arg_h: visit(exp.arg_h),
-          arg_k: visit(exp.arg_k),
+          name: names(exp.name),
+          value: exps(exp.value),
+          k: names(exp.k),
         };
-      return { ...exp, fn: visit(exp.fn), args: exp.args.map(visit) };
+      }
+      return { ...exp, name: names(exp.name), value: exps(exp.value) };
+    case 'block':
+      return { ...exp, subforms: exp.subforms.map(exps) };
+    case 'call':
     case 'kcall':
-      return { ...exp, fn: visit(exp.fn), args: exp.args.map(visit) };
+      if (exp.arg_k) {
+        return {
+          ...exp,
+          fn: exps(exp.fn),
+          args: exp.args.map(exps),
+          arg_h: exps(exp.arg_h),
+          arg_k: exps(exp.arg_k),
+        };
+      }
+      return { ...exp, fn: exps(exp.fn), args: exp.args.map(exps) };
     case 'if':
       return {
         ...exp,
-        cond: visit(exp.cond),
-        then: visit(exp.then),
-        otherwise: visit(exp.otherwise),
+        cond: exps(exp.cond),
+        then: exps(exp.then),
+        otherwise: exps(exp.otherwise),
       };
     case 'let':
     case 'let*':
     case 'klabels':
     case 'labels':
     case 'letrec*':
-      return {
-        ...exp,
-        binds: exp.binds.map(({ value, ...rest }) => ({
-          ...rest,
-          value: visit(value),
-        })),
-        body: visit(exp.body),
-      };
-    case 'klambda':
+      return { ...exp, binds: exp.binds.map(binds), body: exps(exp.body) };
     case 'lambda':
-      return { ...exp, body: visit(exp.body) };
+    case 'klambda':
+      return { ...exp, params: exp.params.map(names), body: exps(exp.body) };
     default:
       throw new UnknownNode(exp);
   }
+}
+
+/**
+ * Transforms the subforms of `exp` via `fn(subform, ...args)`.
+ * @param exp An expression
+ * @param args Extra arguments for `fn`, in addition to the subform argument
+ * @throws {UnknownNode} when `exp` is not a valid node type.
+ */
+export function map_subforms(fn, exp, ...args) {
+  return map_parts1({
+    names: name => name,
+    exps: x => fn(x, ...args),
+    binds: ({ value, ...rest }) => ({ ...rest, value: fn(value, ...args) }),
+  }, exp)
 }
