@@ -1,22 +1,4 @@
-/**
- * @typedef {[number, number]} Span
- * @typedef {{
- *  $: 'lparen' | 'rparen' | 'lbracket' | 'rbracket' | 'lbrace' |
- *     'rbrace' | 'quote' | 'string' | 'atom' | 'eof',
- *  text: string | Symbol,
- *  span: Span,
- * }} Token
- * @typedef {{ $: 'number', value: number, span: Span } |
- *  { $: 'string', value: string, span: Span } |
- *  { $: 'quote', exp: Expr, span: Span } |
- *  { $: 'atom', name: string, span: Span } |
- *  { $: 'list', items: Expr[], span: Span } |
- *  { $: 'infix', items: Expr[], span: Span } |
- *  { $: 'record', items: Expr[], span: Span } |
- *  { $: 'error', exp: Expr | Token, span: Span } |
- *  { $: 'qatom', path: { name: string, span Span }[], relative: boolean, span: Span }
- * } Expr
- */
+/// <reference path="parse-tree.d.ts" />
 
 /**
  * @param {string} text
@@ -241,8 +223,8 @@ class UnexpectedCloseDelimiterError extends ParseError {
 }
 
 /**
- * @param {Expr | Token} exp
- * @returns {Expr}
+ * @param {Sexp | Token} exp
+ * @returns {Sexp}
  */
 function error(exp) {
   return { $: "error", exp: exp, span: exp.span };
@@ -250,7 +232,7 @@ function error(exp) {
 
 /**
  * @param {TokenPeek} stream
- * @returns {Expr}
+ * @returns {Sexp}
  */
 function parse_list(stream, errors=[]) {
   const { value: first } = stream.next();
@@ -293,7 +275,7 @@ function parse_list(stream, errors=[]) {
 
 /**
  * @param {TokenPeek} stream
- * @returns {Expr}
+ * @returns {Sexp}
  */
 function parse_quotation(stream, errors=[]) {
   const { value: quote } = stream.next();
@@ -308,7 +290,7 @@ function parse_quotation(stream, errors=[]) {
 /**
  * @param {Token} atom
  * @param {Array} errors mutated in the event of an error
- * @returns {Expr}
+ * @returns {Sexp}
  */
 function parse_atom(atom, errors) {
   if (atom.$ !== 'atom') {
@@ -356,7 +338,7 @@ function parse_atom(atom, errors) {
 
 /**
  * @param {TokenPeek} stream
- * @returns {Expr}
+ * @returns {Sexp}
  */
 function parse_exp(stream, errors=[]) {
   const { done, value: tok } = stream.peek();
