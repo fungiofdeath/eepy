@@ -214,17 +214,42 @@ function collate_arrayish_errors(name, sexp, errors) {
 }
 
 const Parse = {
+  /**
+   * Constructs a pattern that checks that an item is a sexp, and if it isnt
+   * provides a default error.
+   * @returns {IPattern<any, Sexp, string>}
+   */
   Any: () => Sexp.Any().map_err(invalid_sexpr),
+  /**
+   * Checks if an item is a sexp and an atom (qatom or simple atom).
+   * This does not transform it.
+   * @param {string} name prefix for the error
+   * @returns {IPattern<any, Sexp, string>}
+   */
   Atom: name =>
     Parse.Any()
       .compose(Sexp.Atom())
       .map_err(obj => `${name} must be a symbol, got a ${obj?.$}`),
-  /** @type {(env, pattern?: IPattern) => IPattern} */
+  /**
+   * Checks if an item matches `pattern`, and if it does converts it into an ast
+   * @template I
+   * @param {Env} env
+   * @param {IPattern<I, Sexp, string>} pattern
+   * @returns {IPattern<I, Ast, string>}
+   */
   ToAst: (env, pattern = Sexp.Any()) =>
     pattern.map_ok(sexp => sexp_to_ast(sexp, env)),
-
+  /**
+   * An array pattern dedicated for destructuring arguments lists
+   * @type {<O>() => ArrayPattern<Sexp, O, string>}
+   */
+  Args: () => new ArrayPattern(),
+  /**
+   * For handling the shape of let, let*, and letrec*
+   * @returns {IPattern<any, [Sexp[], ...Sexp[]], ArrayError<any, string>>}
+   */
   LetPattern: () =>
-    new ArrayPattern()
+    Parse.Args()
       .required(
         Parse.Any()
           .compose(
@@ -247,7 +272,7 @@ const Parse = {
 };
 
 function convert_set(args, sexp, env) {
-  return new ArrayPattern()
+  return Parse.Args()
     .required(Parse.ToAst(env, Parse.Atom('the name')))
     .required(Parse.ToAst(env))
     .try_match(args)
@@ -259,7 +284,7 @@ function convert_set(args, sexp, env) {
 }
 
 function convert_import(args, sexp, env) {
-  return new ArrayPattern()
+  return Parse.Args()
     .required(
       Parse.Atom('the import path').map_ok(path => env.load_module(path)),
     )
@@ -272,7 +297,7 @@ function convert_import(args, sexp, env) {
 }
 
 function convert_if(args, sexp, env) {
-  return new ArrayPattern()
+  return Parse.Args()
     .required(Parse.ToAst(env))
     .required(Parse.ToAst(env))
     .optional(Parse.ToAst(env))
@@ -425,7 +450,7 @@ function convert_letrec(args, sexp, env) {
 }
 
 function convert_labels(args, sexp, env) {
-  return new ArrayPattern()
+  return Parse.Args()
     .required(
       Sexp.ListOf().rest(
         Sexp.ListOf()
@@ -485,7 +510,7 @@ function convert_labels(args, sexp, env) {
 }
 
 function convert_lambda(args, sexp, env) {
-  return new ArrayPattern()
+  return Parse.Args()
     .required(Sexp.ListOf().rest(Parse.Atom('parameter names')))
     .required(Parse.Any())
     .rest(Parse.Any())
