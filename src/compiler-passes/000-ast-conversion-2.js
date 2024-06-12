@@ -2,12 +2,12 @@
 /// <reference path="../types/parse-tree.d.ts" />
 /// <reference path="../types/modules.d.ts"/>
 
-import { ensure_loaded } from '../modules';
-import { debug_repr } from '../utils/debug';
-import { InvalidNode, Todo, UnknownNode } from '../utils/errors';
-import { Sexp, ArrayPattern, IPattern, OrPattern } from '../utils/patterns';
-import { Result } from '../utils/result';
-import { gensym } from '../utils/symbols';
+import { Result } from '../utils/result.js';
+import { Sexp, ArrayPattern, IPattern, OrPattern } from '../utils/patterns.js';
+import { UnknownNode } from '../utils/errors.js';
+import { debug_repr } from '../utils/debug.js';
+import { ensure_loaded } from '../modules.js';
+import { gensym } from '../utils/symbols.js';
 
 export function sexp_to_ast(sexp, env = new Env()) {
   const recur = x => sexp_to_ast(x, env);
@@ -20,8 +20,12 @@ export function sexp_to_ast(sexp, env = new Env()) {
     case 'quote':
       return { $: 'literal', value: sexp_to_data(sexp.exp), span: sexp.span };
     case 'atom':
-    case 'qatom':
-      return env.resolve_symbol(sexp);
+    case 'qatom': {
+      const resolved = env.resolve_symbol(sexp);
+      if (!resolved)
+        return error_wrap(sexp, env, `Did not find symbol ${debug_repr(sexp)}`);
+      return resolved;
+    }
     case 'infix':
       if (sexp.items.length === 0) {
         env.errors.push(
@@ -112,7 +116,7 @@ function identical_symbols_p(sym1, sym2) {
   if (sym2.$ !== 'qatom') return false;
   if (sym1.path.length !== sym2.path.length) return false;
   for (let i = 0; i < sym1.path.length; ++i) {
-    if (sym1.path[i] !== sym2.path[i]) return false;
+    if (sym1.path[i].name !== sym2.path[i].name) return false;
   }
   return true;
 }
@@ -140,8 +144,8 @@ function apply(fn, args, sexp, env) {
   else if (is('if')) return convert_if(args, sexp, env);
   else if (is('let')) return convert_let(args, sexp, env);
   else if (is('let*')) return convert_letstar(args, sexp, env);
-  else if (is('letrec*')) return convert_labels(args, sexp, env);
-  else if (is('labels')) return convert_letrec(args, sexp, env);
+  else if (is('letrec*')) return convert_letrec(args, sexp, env);
+  else if (is('labels')) return convert_labels(args, sexp, env);
   else if (is('lambda')) return convert_lambda(args, sexp, env);
   else return convert_call(fn, args, sexp, env);
 }
@@ -242,7 +246,7 @@ const Parse = {
   Composed: (type_error, next_pattern) =>
     Parse.Any()
       .compose(next_pattern)
-      .map_err(obj => `${type_error}, got a ${obj?.$}`),
+      .map_err(obj => `${type_error}, got a ${debug_repr(obj)}`),
   /**
    * Checks if an item is a sexp and an atom (qatom or simple atom).
    * This does not transform it.
@@ -271,21 +275,17 @@ const Parse = {
   LetPattern: () =>
     Parse.Args()
       .required(
-        Parse.Any()
-          .compose(
+        Sexp.ListOf().rest(
+          Parse.Composed(
+            'binding must be a symbol or (symbol expression) list',
             new OrPattern([
-              Parse.Atom('binding names'),
+              Parse.Atom('lone binding names'),
               Sexp.ListOf()
                 .required(Parse.Atom('binding names'))
                 .required(Parse.Any()),
             ]),
-          )
-          .map_err(
-            sexp =>
-              `binding must be a symbol or a (symbol expression) list, got ${debug_repr(
-                sexp,
-              )}`,
           ),
+        ),
       )
       .required(Parse.Any())
       .rest(Parse.Any()),
@@ -298,7 +298,11 @@ const Parse = {
  */
 function convert_set(args, sexp, env) {
   return Parse.Args()
-    .required(Parse.ToAst(env, Parse.Atom('the name')))
+    .required(
+      Parse.Atom('the name').flat_map(name =>
+        env.resolve_symbol(name).map_err(err => error_wrap(sexp, env, err)),
+      ),
+    )
     .required(Parse.ToAst(env))
     .try_match(args)
     .consume(
@@ -424,12 +428,12 @@ function convert_letstar(args, sexp, env) {
         const new_binds = binds.items.map(bind => {
           if (bind.$ === 'list') {
             const value = sexp_to_ast(bind.items[1], inner_env);
-            inner_env = env.extend_env(true);
+            inner_env = inner_env.extend_env(true);
             const new_name = inner_env.bind(bind.items[0]);
             return { name: new_name, value, span: bind.span };
           } else if (bind.$ === 'atom' || bind.$ === 'qatom') {
             const value = nil(bind);
-            inner_env = env.extend_env(true);
+            inner_env = inner_env.extend_env(true);
             const new_name = inner_env.bind(bind);
             return { name: new_name, value, span: bind.span };
           } else {
@@ -503,7 +507,7 @@ function convert_letrec(args, sexp, env) {
             : convert_block(body, sexp, inner_env);
 
         return {
-          $: 'letrec',
+          $: 'letrec*',
           binds: new_binds,
           body: new_body,
           span: sexp.span,
@@ -546,7 +550,7 @@ function convert_labels(args, sexp, env) {
         for (const bind of binds.items) {
           if (bind.$ === 'list') {
             new_bind_names.push(inner_env.bind(bind.items[0]));
-            bind_lambdas.push(bind.slice(1));
+            bind_lambdas.push(bind.items.slice(1));
           } else {
             // if this happens, Parse.LetPattern has a bug
             throw new Error(
@@ -557,7 +561,7 @@ function convert_labels(args, sexp, env) {
 
         // pass 2: convert values
         const new_bind_values = bind_lambdas.map((lambda, idx) =>
-          convert_lambda(lambda, binds[idx], inner_env),
+          convert_lambda(lambda, binds.items[idx], inner_env),
         );
 
         // zip
@@ -624,17 +628,17 @@ function convert_lambda(args, sexp, env) {
  * }} ImportRecord
  */
 export class Env {
+  /** @type {(string | Error)[]} */
+  errors;
   /** @type {Map<string, ImportRecord>} */
   imported;
   /** @type {LocalScope} */
   locals;
-  /** @type {(string | Error)[]} */
-  errors;
 
-  constructor(locals = new LocalScope(), imported = new Map(), errors = []) {
+  constructor(errors = [], locals = new LocalScope(), imported = new Map()) {
+    this.errors = errors;
     this.locals = locals;
     this.imported = imported;
-    this.errors = errors;
   }
 
   /**
@@ -679,11 +683,17 @@ export class Env {
     if (atom.$ === 'qatom') {
       return atom;
     }
-    const found = this.imported.get(atom.name)
+    const found = this.imported.get(atom.name);
     if (!found) {
       return atom;
     }
-    return { $: 'qatom', path: found.module.qualified_name };
+    return {
+      $: 'qatom',
+      path: [
+        ...found.module.qualified_name.map(part => ({ name: part })),
+        { name: atom.name },
+      ],
+    };
   };
 
   /**
@@ -691,7 +701,11 @@ export class Env {
    */
   resolve_symbol = atom => {
     if (atom.$ === 'qatom') {
-      throw new Error(`TODO: Haven't finished resolving qatoms: ${atom.path.map(({ name }) => name).join('')}`);
+      throw new Error(
+        `TODO: Haven't finished resolving qatoms: ${atom.path
+          .map(({ name }) => name)
+          .join('')}`,
+      );
     }
     const found_local = this.locals.lookup(atom.name);
     if (found_local) return found_local;
@@ -708,20 +722,24 @@ export class Env {
    */
   bind = atom => {
     if (atom.$ === 'qatom') {
-      throw new Error(`TODO: Haven't decided what this should do. Qatom is ${atom.path.map(({ name }) => name).join('')}`);
+      throw new Error(
+        `TODO: Haven't decided what this should do. Qatom is ${atom.path
+          .map(({ name }) => name)
+          .join('')}`,
+      );
     }
     return this.locals.bind(atom.name);
   };
 
   // Extend the current envrionment to add an extra local environment
   extend_env = () => {
-    return new Env(new LocalScope(this.locals), this.imported, this.errors);
+    return new Env(this.errors, new LocalScope(this.locals), this.imported);
   };
 }
 
 class LocalScope {
   /** @type {LocalScope} */
-  parent = null;
+  parent;
   /** @type {Map<string, Gensym<string>>} */
   bindings = new Map();
 
@@ -746,6 +764,6 @@ class LocalScope {
   lookup = name => {
     const found = this.bindings.get(name);
     if (found) return found;
-    return this.parent.lookup(name);
+    return this.parent?.lookup(name);
   };
 }

@@ -2,8 +2,8 @@
 /// <reference path="types/modules.d.ts" />
 
 import fs from 'node:fs';
-import { gensym } from './utils/symbols';
-import { Result } from './utils/result';
+import { gensym } from './utils/symbols.js';
+import { Result } from './utils/result.js';
 
 export const EEPY_SYSTEM_PATH = 'src/module-interfaces';
 export const EEPY_LOCAL_PATH = 'samples';
@@ -37,7 +37,7 @@ export function ensure_loaded(path) {
   const items = parse_json_interface(json);
   const mod = {
     normalized_path: parsed.normalized,
-    qualified_name: parsed.path,
+    qualified_name: parsed.parts,
     items,
   };
 
