@@ -2,18 +2,13 @@ import fs from 'node:fs';
 
 import { program } from 'commander';
 
-import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
-import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
-import { flatten } from './compiler-passes/200-L-flatten-forms.js';
+import { sexp_to_ast, Env } from './compiler-passes/000-ast-conversion-2.js';
 import { name_lambdas } from './compiler-passes/125-name-lambdas.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
-import { parse_tree_to_ast } from './compiler-passes/000-ast-conversion.js';
+import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
+import { flatten } from './compiler-passes/200-L-flatten-forms.js';
+import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
 import { start_cps } from './compiler-passes/400-cps.js';
-import {
-  Env,
-  Globals,
-  resolve_names,
-} from './compiler-passes/100-name-resolution.js';
 
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
@@ -38,65 +33,77 @@ program.command('pipeline')
 
 program.parse();
 
+function consumeErrors(errors) {
+  if (errors.length > 0) {
+    for (const error of errors) {
+      console.error('Error', error);
+    }
+    for (let i = 0; i < errors.length; ++i) {
+      errors.pop();
+    }
+    throw new Error('The above errors occurred during processing');
+  }
+}
+
 function visualize_pipeline(code) {
   const errors = [];
   for (const exp of parse(code, errors)) {
     try {
-      if (errors.length > 0) {
-        for (const error of errors) {
-          console.error('Error', debug_repr(error));
-        }
-        for (let i = 0; i < errors.length; ++i) {
-          errors.pop();
-        }
-      } else {
-        print_header('parsing');
-        const ast = parse_tree_to_ast(exp);
-        console.log(pretty_print(ast));
+      consumeErrors(errors);
 
-        print_header('name resolution');
-        const globals = new Globals();
-        const start_env = new Env(null, globals);
-        const resolved = resolve_names(ast, start_env);
-        console.log('Result:');
-        console.log(pretty_print(resolved));
-        console.log(
-          '\nUndefined variables',
-          [...globals.undefined_vars].map(([_, v]) => v),
-        );
+      print_header('name resolution');
+      const env = new Env(errors);
+      const core_module_result = env.import_module('sys:core');
+      core_module_result.consume(
+        core_module => {
+          for (const item of core_module.items.keys()) {
+            env.add_imported_symbol({ $: 'atom', name: item }, core_module);
+          }
+        },
+        errors => {
+          throw new Error(
+            'Fatal error: Could not construct core module due to',
+            errors,
+          );
+        },
+      );
+      const resolved = sexp_to_ast(exp, env);
+      // console.debug(debug_repr(resolved));
+      consumeErrors(errors);
+      console.log(pretty_print(resolved))
+        
 
-        print_header('naming lambdas');
-        const named = name_lambdas(resolved);
-        console.log('Named Lambdas');
-        // console.log(debug_repr(named));
-        console.log(pretty_print(named));
+      print_header('naming lambdas');
+      const named = name_lambdas(resolved);
+      console.log('Named Lambdas');
+      // console.log(debug_repr(named));
+      console.log(pretty_print(named));
 
-        print_header('normalize let forms');
-        const normalized = normalize_let_variants(named);
-        console.log('New AST');
-        console.log(pretty_print(normalized));
+      print_header('normalize let forms');
+      const normalized = normalize_let_variants(named);
+      console.log('New AST');
+      console.log(pretty_print(normalized));
 
-        print_header('analyze usages');
-        console.log('Analysis');
-        console.log(
-          new Set([...analyze_usages(normalized)].sort((x, y) => x.id - y.id)),
-        );
+      print_header('analyze usages');
+      console.log('Analysis');
+      console.log(
+        new Set([...analyze_usages(normalized)].sort((x, y) => x.id - y.id)),
+      );
 
-        print_header('flatten extraneously-nested forms');
-        const flattened = flatten(normalized);
-        console.log('Flattened:');
-        console.log(pretty_print(flattened));
+      print_header('flatten extraneously-nested forms');
+      const flattened = flatten(normalized);
+      console.log('Flattened:');
+      console.log(pretty_print(flattened));
 
-        print_header("compile-out letrec*'s");
-        const depanalysis = compile_letrec(flattened);
-        console.log('Compiled-out:');
-        console.log(pretty_print(depanalysis));
+      print_header("compile-out letrec*'s");
+      const depanalysis = compile_letrec(flattened);
+      console.log('Compiled-out:');
+      console.log(pretty_print(depanalysis));
 
-        print_header('continuation passing style');
-        const cpsed = start_cps(depanalysis);
-        console.log('CPS:');
-        console.log(pretty_print(cpsed));
-      }
+      print_header('continuation passing style');
+      const cpsed = start_cps(depanalysis);
+      console.log('CPS:');
+      console.log(pretty_print(cpsed));
     } catch (e) {
       console.error('Error', e);
     }
