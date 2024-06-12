@@ -1,6 +1,6 @@
 import { debug_repr } from '../utils/debug';
 import { InvalidNode, Todo, UnknownNode } from '../utils/errors';
-import { Sexp, ArrayPattern, IPattern, OrPattern } from '../utils/validate_transformer/patterns';
+import { Sexp, ArrayPattern, IPattern, OrPattern } from '../utils/patterns';
 
 export function sexp_to_ast(sexp, env = new Env()) {
   const recur = x => sexp_to_ast(x, env);

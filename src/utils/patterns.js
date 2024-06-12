@@ -1,4 +1,4 @@
-/// <reference path="../../text/parse-tree.d.ts" />
+/// <reference path="../types/parse-tree.d.ts" />
 
 import { Result } from './result.js';
 
