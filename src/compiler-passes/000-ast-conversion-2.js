@@ -1,6 +1,13 @@
+/// <reference path="../types/gensym.d.ts" />
+/// <reference path="../types/parse-tree.d.ts" />
+/// <reference path="../types/modules.d.ts"/>
+
+import { ensure_loaded } from '../modules';
 import { debug_repr } from '../utils/debug';
 import { InvalidNode, Todo, UnknownNode } from '../utils/errors';
 import { Sexp, ArrayPattern, IPattern, OrPattern } from '../utils/patterns';
+import { Result } from '../utils/result';
+import { gensym } from '../utils/symbols';
 
 export function sexp_to_ast(sexp, env = new Env()) {
   const recur = x => sexp_to_ast(x, env);
@@ -46,7 +53,7 @@ const error_wrap = (sexp, env, error) => {
 };
 
 function coreatom(name, span) {
-  return qatom(['core', name], span);
+  return qatom(['sys', 'core', name], span);
 }
 
 function qatom(path, span) {
@@ -110,6 +117,12 @@ function identical_symbols_p(sym1, sym2) {
   return true;
 }
 
+/**
+ * @param {Sexp} fn
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function apply(fn, args, sexp, env) {
   if (fn.$ === 'atom') {
     fn = env.qualify_symbol(fn);
@@ -133,6 +146,12 @@ function apply(fn, args, sexp, env) {
   else return convert_call(fn, args, sexp, env);
 }
 
+/**
+ * @param {Sexp} fn
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_call(fn, args, sexp, env) {
   return {
     $: 'call',
@@ -220,16 +239,17 @@ const Parse = {
    * @returns {IPattern<any, Sexp, string>}
    */
   Any: () => Sexp.Any().map_err(invalid_sexpr),
+  Composed: (type_error, next_pattern) =>
+    Parse.Any()
+      .compose(next_pattern)
+      .map_err(obj => `${type_error}, got a ${obj?.$}`),
   /**
    * Checks if an item is a sexp and an atom (qatom or simple atom).
    * This does not transform it.
    * @param {string} name prefix for the error
    * @returns {IPattern<any, Sexp, string>}
    */
-  Atom: name =>
-    Parse.Any()
-      .compose(Sexp.Atom())
-      .map_err(obj => `${name} must be a symbol, got a ${obj?.$}`),
+  Atom: name => Parse.Composed(`${name} must be a symbol`, Sexp.Atom()),
   /**
    * Checks if an item matches `pattern`, and if it does converts it into an ast
    * @template I
@@ -271,6 +291,11 @@ const Parse = {
       .rest(Parse.Any()),
 };
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_set(args, sexp, env) {
   return Parse.Args()
     .required(Parse.ToAst(env, Parse.Atom('the name')))
@@ -283,19 +308,44 @@ function convert_set(args, sexp, env) {
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_import(args, sexp, env) {
+  const ImportList = Sexp.ListOf().rest(
+    Parse.Composed('imported name must be an unqualified atom', Sexp.SAtom()),
+  );
   return Parse.Args()
-    .required(
-      Parse.Atom('the import path').map_ok(path => env.load_module(path)),
-    )
+    .required(ImportList)
+    .required(Parse.Composed('import path must be a string', Sexp.String()))
     .try_match(args)
     .consume(
-      () => nil(sexp),
+      ([imports, path]) => {
+        const mod = env.import_module(path);
+        if (!mod) {
+          return error_wrap(
+            sexp,
+            env,
+            new Error(`Invalid module ${path.value}`),
+          );
+        }
+        for (const sym of imports) {
+          env.add_imported_symbol(sym, mod);
+        }
+        return nil(sexp);
+      },
       errors =>
         error_wrap(sexp, env, collate_arrayish_errors('import', sexp, errors)),
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_if(args, sexp, env) {
   return Parse.Args()
     .required(Parse.ToAst(env))
@@ -314,6 +364,11 @@ function convert_if(args, sexp, env) {
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_let(args, sexp, env) {
   return Parse.LetPattern()
     .try_match(args)
@@ -329,7 +384,7 @@ function convert_let(args, sexp, env) {
             const new_name = inner_env.bind(bind.items[0]);
             return { name: new_name, value, span: bind.span };
           } else if (bind.$ === 'atom' || bind.$ === 'qatom') {
-            const value = nil(bind)
+            const value = nil(bind);
             const new_name = inner_env.bind(bind);
             return { name: new_name, value, span: bind.span };
           } else {
@@ -352,6 +407,11 @@ function convert_let(args, sexp, env) {
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_letstar(args, sexp, env) {
   return Parse.LetPattern()
     .try_match(args)
@@ -392,6 +452,11 @@ function convert_letstar(args, sexp, env) {
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_letrec(args, sexp, env) {
   return Parse.LetPattern()
     .try_match(args)
@@ -449,6 +514,11 @@ function convert_letrec(args, sexp, env) {
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_labels(args, sexp, env) {
   return Parse.Args()
     .required(
@@ -502,13 +572,23 @@ function convert_labels(args, sexp, env) {
             ? sexp_to_ast(body[0], inner_env)
             : convert_block(body, sexp, inner_env);
 
-        return { $: 'labels', binds: new_binds, body: new_body, span: sexp.span };
+        return {
+          $: 'labels',
+          binds: new_binds,
+          body: new_body,
+          span: sexp.span,
+        };
       },
       errors =>
         error_wrap(sexp, env, collate_arrayish_errors('labels', sexp, errors)),
     );
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {SexpList} sexp
+ * @param {Env} env
+ */
 function convert_lambda(args, sexp, env) {
   return Parse.Args()
     .required(Sexp.ListOf().rest(Parse.Atom('parameter names')))
@@ -523,7 +603,7 @@ function convert_lambda(args, sexp, env) {
           body.length === 1
             ? sexp_to_ast(body[0], inner_env)
             : convert_block(body, sexp, inner_env);
-        
+
         return {
           $: 'lambda',
           params: new_params,
@@ -533,26 +613,139 @@ function convert_lambda(args, sexp, env) {
       },
       errors =>
         error_wrap(sexp, env, collate_arrayish_errors('lambda', sexp, errors)),
-    )
+    );
 }
 
-class Env {
-  constructor() {
-    this.modules = null;
-    this.global = null;
-    this.locals = null;
-    this.errors = [];
+/**
+ * @typedef {{
+ *  module: Module,
+ *  item: ModuleItem,
+ *  import_name: SexpSAtom,
+ * }} ImportRecord
+ */
+export class Env {
+  /** @type {Map<string, ImportRecord>} */
+  imported;
+  /** @type {LocalScope} */
+  locals;
+  /** @type {(string | Error)[]} */
+  errors;
+
+  constructor(locals = new LocalScope(), imported = new Map(), errors = []) {
+    this.locals = locals;
+    this.imported = imported;
+    this.errors = errors;
   }
 
-  load_module = path => {};
-  qualify_symbol = atom => {};
-  resolve_symbol = atom => {};
+  /**
+   * @param {string} path
+   * @returns {Result<Module, string>}
+   */
+  import_module = path => {
+    return ensure_loaded(path);
+  };
 
-  extend_env = (unique_binds = true) => {};
-  alias_symbol = (atom, to) => {};
-  bind = atom => {};
+  /**
+   * @param {SexpSAtom} symbol
+   * @param {Module} mod
+   * @returns {Result<Gensym<string>, string>}
+   */
+  add_imported_symbol = (symbol, mod) => {
+    const found = this.imported.get(symbol.name);
+    if (found) {
+      return Result.Err(
+        `Ambiguous import, ${symbol.name} has already been imported from '${found.module.normalized_path}'`,
+      );
+    }
+
+    const item = mod.items.get(symbol.name);
+    if (!item) {
+      throw new Error(
+        `IERR symbol ${symbol.name} does not belong to module (${mod.normalized_path}) its being imported with`,
+      );
+    }
+
+    const record = { module: mod, item, import_name: symbol };
+    this.imported.set(symbol.name, record);
+
+    return item.name;
+  };
+
+  /**
+   * @param {SexpSAtom | SexpQAtom} atom
+   * @returns {SexpSAtom | SexpQAtom}
+   */
+  qualify_symbol = atom => {
+    if (atom.$ === 'qatom') {
+      return atom;
+    }
+    const found = this.imported.get(atom.name)
+    if (!found) {
+      return atom;
+    }
+    return { $: 'qatom', path: found.module.qualified_name };
+  };
+
+  /**
+   * @param {SexpSAtom | SexpQAtom} atom
+   */
+  resolve_symbol = atom => {
+    if (atom.$ === 'qatom') {
+      throw new Error(`TODO: Haven't finished resolving qatoms: ${atom.path.map(({ name }) => name).join('')}`);
+    }
+    const found_local = this.locals.lookup(atom.name);
+    if (found_local) return found_local;
+    const found_import = this.imported.get(atom.name);
+    if (found_import) return found_import.item.name;
+
+    return null;
+  };
+
+  // Bind an atom in the current local environment
+  /**
+   * @param {SexpSAtom | SexpQAtom} atom
+   * @returns {Gensym<string> | null}
+   */
+  bind = atom => {
+    if (atom.$ === 'qatom') {
+      throw new Error(`TODO: Haven't decided what this should do. Qatom is ${atom.path.map(({ name }) => name).join('')}`);
+    }
+    return this.locals.bind(atom.name);
+  };
+
+  // Extend the current envrionment to add an extra local environment
+  extend_env = () => {
+    return new Env(new LocalScope(this.locals), this.imported, this.errors);
+  };
 }
 
-class ModuleLoader {}
-class GlobalScope {}
-class LocalScope {}
+class LocalScope {
+  /** @type {LocalScope} */
+  parent = null;
+  /** @type {Map<string, Gensym<string>>} */
+  bindings = new Map();
+
+  constructor(parent = null) {
+    this.parent = parent;
+  }
+
+  /**
+   * @param {string} name
+   */
+  bind = name => {
+    if (this.bindings.has(name)) return null;
+    const new_name = gensym(name);
+    this.bindings.set(name, new_name);
+    return new_name;
+  };
+
+  /**
+   * @param {string} name
+   * @returns {Gensym<string> | undefined}
+   */
+  lookup = name => {
+    const found = this.bindings.get(name);
+    if (found) return found;
+    return this.parent.lookup(name);
+  };
+}
