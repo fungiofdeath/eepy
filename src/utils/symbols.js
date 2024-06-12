@@ -1,9 +1,16 @@
+/// <reference path="../types/modules.d.ts" />
+
 import { debug_repr } from "./debug.js";
 
 export const symbol_table = [];
 
 const $symbol = Symbol('symbol');
 
+/**
+ * @template T
+ * @param {T} name
+ * @returns {Gensym<T>}
+ */
 export function gensym(name, rest = {}) {
   let extra_data = { ...rest };
   if (typeof name === 'string') {
