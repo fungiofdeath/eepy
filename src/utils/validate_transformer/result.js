@@ -1,4 +1,7 @@
 
+const ResultOkSymbol = Symbol('ok?');
+const ResultDataSymbol = Symbol('data');
+
 /**
  * @template Ok
  * @template Err
@@ -6,9 +9,9 @@
  */
 export class Result {
   /** @type {boolean} */
-  #ok;
+  [ResultOkSymbol];
   /** @type {Ok | Err} */
-  #data;
+  [ResultDataSymbol];
 
   /**
    * @constructor
@@ -16,12 +19,12 @@ export class Result {
    * @param {Ok | Err} data must be T if boolean === true, E if boolean === false
    */
   constructor(ok, data) {
-    this.#ok = ok;
-    this.#data = data;
+    this[ResultOkSymbol] = ok;
+    this[ResultDataSymbol] = data;
   }
 
   get ok() {
-    return this.#ok;
+    return this[ResultOkSymbol];
   }
 
   /**
@@ -39,12 +42,12 @@ export class Result {
   /**
    * @returns {Result<Ok, Err>}
    */
-  clone = () => new Result(this.#ok, this.#data);
+  clone = () => new Result(this[ResultOkSymbol], this[ResultDataSymbol]);
 
   /**
    * @returns {Result<Err, Ok>}
    */
-  swap = () => new Result(!this.#ok, this.#data);
+  swap = () => new Result(!this[ResultOkSymbol], this[ResultDataSymbol]);
 
   /**
    * @template X
@@ -54,7 +57,7 @@ export class Result {
    * @returns {X | Y}
    */
   consume = (if_ok, if_err) =>
-    this.#ok ? if_ok(this.#data) : if_err(this.#data);
+    this[ResultOkSymbol] ? if_ok(this[ResultDataSymbol]) : if_err(this[ResultDataSymbol]);
 
   /**
    * @template X
@@ -63,7 +66,7 @@ export class Result {
    * @param {(error: Err) => Y} if_err
    * @returns {Result<X, Y>}
    */
-  bimap = (if_ok, if_err) => new Result(this.#ok, this.consume(if_ok, if_err));
+  bimap = (if_ok, if_err) => new Result(this[ResultOkSymbol], this.consume(if_ok, if_err));
 
   /**
    * @template X
@@ -86,8 +89,8 @@ export class Result {
    * @returns {Ok}
    */
   assert_ok_with_error = error => {
-    if (!this.#ok) throw error;
-    return this.#data;
+    if (!this[ResultOkSymbol]) throw error;
+    return this[ResultDataSymbol];
   };
 
   /**
@@ -97,15 +100,15 @@ export class Result {
    * @returns {Err}
    */
   assert_err_with_error = error => {
-    if (this.#ok) throw error;
-    return this.#data;
+    if (this[ResultOkSymbol]) throw error;
+    return this[ResultDataSymbol];
   };
 
   assert_ok = () =>
     this.assert_ok_with_error(
       new Error(
         `Result was asserted to be ok but it is err. Current error: ${
-          this.#data
+          this[ResultDataSymbol]
         }`,
       ),
     );
@@ -114,7 +117,7 @@ export class Result {
     this.assert_err_with_error(
       new Error(
         `Result was asserted to be err but it is ok. Current data: ${
-          this.#data
+          this[ResultDataSymbol]
         }`,
       ),
     );
@@ -122,14 +125,14 @@ export class Result {
   /**
    * @returns {Ok | Result<never, Err>}
    */
-  flatten = () => (this.#ok ? this.#data : this);
+  flatten = () => (this[ResultOkSymbol] ? this[ResultDataSymbol] : this);
 
   /**
    * @template X
    * @param {(ok: Ok) => Result<X, Err>} f
    * @returns {Result<X, Err>}
    */
-  flat_map = f => (this.#ok ? f(this.#data) : this);
+  flat_map = f => (this[ResultOkSymbol] ? f(this[ResultDataSymbol]) : this);
 
   /**
    * @template X
@@ -194,7 +197,7 @@ export class Result {
    * @param {X} result
    * @returns {Result<Ok, never> | X}
    */
-  or = result => (this.#ok ? this : result);
+  or = result => (this[ResultOkSymbol] ? this : result);
 
   /**
    * @template X
