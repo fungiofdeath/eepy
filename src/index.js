@@ -57,7 +57,7 @@ function visualize_pipeline(code) {
       core_module_result.consume(
         core_module => {
           for (const item of core_module.items.keys()) {
-            env.add_imported_symbol({ $: 'atom', name: item }, core_module);
+            env.add_import_symbol({ $: 'atom', name: item }, core_module);
           }
         },
         errors => {

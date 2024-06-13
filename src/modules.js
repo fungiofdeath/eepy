@@ -17,11 +17,13 @@ const local_import = /^(?:local\:)?(?<mod>[a-z]+(?:\.[a-z]+)*)$/i;
 export const loaded_modules = new Map();
 
 /**
- * @param {string} path
+ * @param {string | string[]} path
  * @returns {Result<Module, string>}
  */
 export function ensure_loaded(path) {
-  const parsed_result = parse_import(path);
+  const parsed_result = Array.isArray(path)
+    ? parse_import_array(path)
+    : parse_import_string(path);
   if (!parsed_result.ok) return parsed_result;
   const parsed = parsed_result.assert_ok();
 
@@ -47,6 +49,69 @@ export function ensure_loaded(path) {
 }
 
 /**
+ * @param {string[]} parts
+ * @returns {Result<{
+ *  dir: string,
+ *  mod: string,
+ *  normalized: string,
+ *  parts: [],
+ * }, string>}
+ */
+function parse_import_array(parts) {
+  if (!Array.isArray(parts) || parts.length === 0) {
+    throw new Error(`IErr: parts must be a non-zero array, got ${parts}`);
+  }
+
+  const is_sys = parts[0] === 'sys';
+  const is_lib = parts[0] === 'lib';
+
+  if (is_sys) {
+    if (parts.length === 1) {
+      return Result.Err(`system import path missing its module`);
+    }
+
+    const mod_parts = parts.slice(1);
+    const mod = mod_parts.join('.');
+    return Result.Ok({
+      dir: EEPY_SYSTEM_PATH,
+      mod,
+      normalized: `sys:${mod}`,
+      parts: parts,
+    });
+  } else if (is_lib) {
+    if (parts.length === 1) {
+      return Result.Err(`library import missing its library`);
+    } else if (parts.length === 2) {
+      return Result.Err(`library import missing its module`);
+    }
+
+    const lib_name = parts[1];
+    const mod_parts = parts.slice(2);
+    const mod = mod_parts.join('.');
+    return Result.Ok({
+      dir: EEPY_LIB_PATH,
+      mod,
+      normalized: `lib:${lib_name}:${mod}`,
+      parts: parts,
+    });
+  } else {
+    const mod_parts = parts[0] === 'local'
+      ? parts.slice(1)
+      : parts;
+    if (mod_parts.length === 0) {
+      return Result.Err(`local import missing its module`);
+    }
+    const mod = mod_parts.join('.');
+    return Result.Ok({
+      dir: EEPY_LOCAL_PATH,
+      mod,
+      normalized: `local:${mod}`,
+      parts: ['local', ...parts],
+    });
+  }
+}
+
+/**
  * @param {string} path
  * @returns {Result<{
  *  dir: string,
@@ -55,7 +120,7 @@ export function ensure_loaded(path) {
  *  parts: string[],
  * }, string>}
  */
-function parse_import(path) {
+function parse_import_string(path) {
   const sys = path.match(system_import)?.groups;
   const lib = path.match(library_import)?.groups;
   const loc = path.match(local_import)?.groups;
