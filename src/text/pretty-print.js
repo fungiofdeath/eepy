@@ -12,7 +12,7 @@ export function pretty_print(exp, indent = '') {
   const indent4 = indent + '    ';
   switch (exp.$) {
     case 'literal':
-      return `${debug_repr(exp.value)}`;
+      return `${print_value(exp.value, indent)}`;
     case 'var':
       return `${namefmt(exp.name)}`;
     case 'set!': {
@@ -79,6 +79,32 @@ export function pretty_print(exp, indent = '') {
     }
     default:
       throw new UnknownNode(exp);
+  }
+}
+
+function print_value(value, indent) {
+  const rec = (x, new_indent = indent) => print_value(x, new_indent);
+  if (!value?.$) {
+    return debug_repr(value);
+  }
+  switch (value.$) {
+    case 'string':
+      return debug_repr(value.value);
+    case 'number':
+      return debug_repr(Number.parseFloat(value.value));
+    case 'atom':
+    case 'qatom':
+      return namefmt(value);
+    case 'list':
+      return `(${partsfmt(
+        value.items.map(item => `\f${rec(item)}`).join(''),
+        ' ',
+        `\n${indent}  `,
+      )})`;
+    case 'error':
+      return `#<error ${value.exp} ${value.exp?.$}>`;
+    default:
+      throw new Error(`IERR Not a value ${debug_repr(value)}`);
   }
 }
 
