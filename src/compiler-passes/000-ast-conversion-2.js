@@ -731,14 +731,20 @@ export class Env {
     if (atom.$ === 'qatom') {
       return atom;
     }
-    const found = this.imported.get(atom.name);
-    if (!found) {
+    // If the symbol is local, it has no associated module data
+    const found_local = this.locals.lookup(atom.name);
+    if (found_local) return atom;
+
+    // If the symbol is imported, the module it was imported from is the
+    // module data we're after.
+    const found_imported = this.imported.get(atom.name);
+    if (!found_imported) {
       return atom;
     }
     return {
       $: 'qatom',
       path: [
-        ...found.module.qualified_name.map(part => ({ name: part })),
+        ...found_imported.module.qualified_name.map(part => ({ name: part })),
         { name: atom.name },
       ],
     };
