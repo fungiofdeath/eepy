@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 import { program } from 'commander';
 
-import { sexp_to_ast, Env } from './compiler-passes/000-ast-conversion-2.js';
+import { sexp_to_ast, Env } from './compiler-passes/000-resolution.js';
 import { name_lambdas } from './compiler-passes/125-name-lambdas.js';
 import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
 import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
