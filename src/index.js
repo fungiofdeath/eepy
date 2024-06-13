@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import { program } from 'commander';
 
 import { sexp_to_ast, Env } from './compiler-passes/000-resolution.js';
-import { name_lambdas } from './compiler-passes/125-name-lambdas.js';
-import { normalize_let_variants } from './compiler-passes/150-combine-let-variants.js';
-import { analyze_usages } from './compiler-passes/150-L-analyze-usage.js';
-import { flatten } from './compiler-passes/200-L-flatten-forms.js';
-import { compile_letrec } from './compiler-passes/300-compile-letrec.js';
-import { start_cps } from './compiler-passes/400-cps.js';
+import { name_lambdas } from './compiler-passes/100-name-lambdas.js';
+import { normalize_let_variants } from './compiler-passes/200-combine-let-variants.js';
+import { analyze_usages } from './compiler-passes/200-analyze-usage.js';
+import { flatten } from './compiler-passes/300-flatten-forms.js';
+import { compile_letrec } from './compiler-passes/400-compile-letrec.js';
+import { start_cps } from './compiler-passes/500-cps.js';
 
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
