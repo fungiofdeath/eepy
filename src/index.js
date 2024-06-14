@@ -33,18 +33,6 @@ program.command('pipeline')
 
 program.parse();
 
-function consumeErrors(errors) {
-  if (errors.length > 0) {
-    for (const error of errors) {
-      console.error('Error', error);
-    }
-    for (let i = 0; i < errors.length; ++i) {
-      errors.pop();
-    }
-    throw new Error('The above errors occurred during processing');
-  }
-}
-
 function visualize_pipeline(code) {
   const errors = [];
   for (const exp of parse(code, errors)) {
@@ -115,4 +103,16 @@ function print_header(header, spacer = '\n\n\n\n\n') {
   console.log('=========================================');
   console.log(header);
   console.log('=========================================');
+}
+
+function consumeErrors(errors) {
+  if (errors.length > 0) {
+    for (const error of errors) {
+      console.error('Error', error);
+    }
+    for (let i = 0; i < errors.length; ++i) {
+      errors.pop();
+    }
+    throw new Error('The above errors occurred during processing');
+  }
 }
