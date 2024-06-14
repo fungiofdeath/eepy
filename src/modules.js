@@ -166,29 +166,18 @@ function read_import(parsed) {
     return Result.Err(`Invalid load path, expected a directory: ${dir}`);
   }
 
-  const files = fs.readdirSync(dir, {
-    withFileTypes: true,
-  });
-  const found = files.find(file => {
-    if (!file.isFile || !file.name.startsWith(mod)) {
-      return false;
-    }
-    const rest = file.name.slice(mod.length);
-    return rest.match(/^(?:\.json)$/);
-  });
-
-  if (!found) {
+  try {
+    return Result.Ok(
+      fs
+        .readFileSync(`${dir}/${mod}.json`, {
+          encoding: 'utf8',
+          flag: fs.constants.O_RDONLY,
+        })
+        .toString(),
+    );
+  } catch (e) {
     return Result.Err(`Module not found: ${mod}\nLoad path: ${dir}`);
   }
-
-  return Result.Ok(
-    fs
-      .readFileSync(`${found.parentPath}/${found.name}`, {
-        encoding: 'utf8',
-        flag: fs.constants.O_RDONLY,
-      })
-      .toString(),
-  );
 }
 
 /**
