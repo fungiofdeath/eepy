@@ -16,7 +16,7 @@ export class IPattern {
    */
   try_match = object => {
     throw new Error(
-      `IPatternTransformer.prototype.try_transform() must be overridden by its subexport class: ${this.constructor}`,
+      `IPatterm.prototype.try_transform() must be overridden by its subclass: ${this.constructor.name}`,
     );
   };
 
@@ -190,7 +190,7 @@ export class ArrayPattern extends IPattern {
   rest = pattern => {
     if (this.#rest) {
       throw new Error(
-        'ListyTransformer.prototype.rest(): rest has already been set, it may not be modified',
+        'ArrayPattern.prototype.rest(): rest has already been set, it may not be modified',
       );
     }
     this.#rest = pattern;
