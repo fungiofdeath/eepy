@@ -17,7 +17,7 @@ export function pretty_print(exp, indent = '') {
       return `${namefmt(exp.name)}`;
     case 'set!': {
       const t = exp.tail_pos ? 'tail-call ' : '';
-      const k = exp.k ? `\f${namefmt(exp.k)}` : '';
+      const k = exp.k ? `\f${rec(exp.k, indent2)}` : '';
       return partsfmt(
         `(${t}set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
         ' ',

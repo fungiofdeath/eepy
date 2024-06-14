@@ -37,7 +37,7 @@ export function map_parts1(config, exp) {
           ...exp,
           name: names(exp.name),
           value: exps(exp.value),
-          k: names(exp.k),
+          k: exps(exp.k),
         };
       }
       return { ...exp, name: names(exp.name), value: exps(exp.value) };

@@ -50,9 +50,9 @@ function* _cps(exp, h, k, desired_name=undefined) {
       return apply_continuation(k, { ...exp, param_k, param_h, body });
     }
     case 'set!': {
-      const kwrap = yield wrap("set!", k, desired_name);
+      const kwrap = yield wrap('set!', k, desired_name);
       const value = yield eval_intermediate(exp.value, h);
-      return { ...exp, value, k: kwrap, };
+      return { ...exp, value, k: { $: 'var', name: kwrap } };
     }
     case 'block': {
       if (exp.subforms.length === 0) {
