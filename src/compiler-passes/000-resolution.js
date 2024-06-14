@@ -334,7 +334,7 @@ function convert_import(args, sexp, env) {
     .consume(
       ([imports, path]) => {
         const mod = env.import_module(path);
-        if (!mod) {
+        if (!mod.ok) {
           return error_wrap(
             sexp,
             env,
@@ -342,7 +342,7 @@ function convert_import(args, sexp, env) {
           );
         }
         for (const sym of imports) {
-          env.add_import_symbol(sym, mod);
+          env.add_import_symbol(sym, mod.assert_ok);
         }
         return nil(sexp);
       },
@@ -682,6 +682,8 @@ export class Env {
   import_module = path => {
     if (typeof path === 'string') {
       return ensure_loaded(path);
+    } else if (path.$ === 'string') {
+      return ensure_loaded(path.value);
     } else if (path.$ === 'atom') {
       return ensure_loaded(path.name);
     } else if (path.$ === 'qatom') {
