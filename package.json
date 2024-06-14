@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "author": "Fungi",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "debug": "node --inspect src/index.js"
   },
   "devDependencies": {
     "prettier": "3.0.3"
