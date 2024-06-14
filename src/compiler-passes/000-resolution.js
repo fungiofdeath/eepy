@@ -82,7 +82,7 @@ function sexp_to_data(sexp) {
     case 'infix':
       return sexp_to_tagged_list(sexp, 'infix', ...sexp.items);
     case 'record':
-      return sexp_to_tagged_list(sexp, 'record', sexp.items);
+      return sexp_to_tagged_list(sexp, 'record', ...sexp.items);
     case 'list':
       return {
         $: 'list',
