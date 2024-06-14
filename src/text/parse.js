@@ -1,4 +1,4 @@
-/// <reference path="parse-tree.d.ts" />
+/// <reference path="../types/parse-tree.d.ts" />
 
 /**
  * @param {string} text

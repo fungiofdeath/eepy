@@ -1,4 +1,4 @@
-/// <reference path="../types/modules.d.ts" />
+/// <reference path="../types/gensym.d.ts" />
 
 import { debug_repr } from "./debug.js";
 
