@@ -86,7 +86,7 @@ export class OrPattern extends IPattern {
   /**
    * @param {IPattern<I, O, E>[]} subpatterns
    */
-  constructor(subpatterns) {
+  constructor(...subpatterns) {
     super();
     if (!Array.isArray(subpatterns) || subpatterns.length < 2) {
       throw new Error('OrTransform must contain at least 2 sub-patterns');

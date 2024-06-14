@@ -279,12 +279,12 @@ const Parse = {
         Sexp.ListOf().rest(
           Parse.Composed(
             'binding must be a symbol or (symbol expression) list',
-            new OrPattern([
+            new OrPattern(
               Parse.Atom('lone binding names'),
               Sexp.ListOf()
                 .required(Parse.Atom('binding names'))
                 .required(Parse.Any()),
-            ]),
+            ),
           ),
         ),
       )
