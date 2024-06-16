@@ -95,13 +95,7 @@ function visualize_pipeline(code) {
       console.log('CPS:');
       console.log(pretty_print(cpsed));
 
-      print_header("finding tail calls");
-      const calls = find_tail_positions(cpsed, new Set(), '#%finish', '#%finish')
-      for (const [call] of calls.entries()) {
-        console.log('tail call before', call.tail_pos.param_k, 'for', call.tail_pos, 'at', call);
-      }
-      console.log(pretty_print(cpsed));
-
+      print_header('contifying');
       const contified = contify(cpsed);
       console.log(pretty_print(contified));
     } catch (e) {
