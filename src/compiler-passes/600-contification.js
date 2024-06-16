@@ -75,7 +75,14 @@ function collect_non_tails(
   }
 }
 
-function expStar(exp, map, param_k, k0, param_h, h0) {
+function expStar(
+  exp,
+  map,
+  param_k = undefined,
+  k0 = undefined,
+  param_h = undefined,
+  h0 = undefined,
+) {
   exp = map_parts1(
     {
       names: name => (name == param_k ? k0 : name == param_h ? h0 : name),
@@ -296,7 +303,7 @@ function contify_bindings(exp) {
                 },
               };
             }),
-            body: expStar(exp, map, exp.param_k, k0, h0),
+            body: expStar(exp, map),
           })),
         };
       } else {
@@ -330,7 +337,7 @@ function contify_bindings(exp) {
                         },
                       };
                     }),
-                    body: expStar(exp, map, bind.value.param_k, k0, h0),
+                    body: expStar(exp, map),
                   };
                 }),
               };
