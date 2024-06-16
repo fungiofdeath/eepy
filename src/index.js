@@ -9,6 +9,7 @@ import { analyze_usages } from './compiler-passes/200-analyze-usage.js';
 import { flatten } from './compiler-passes/300-flatten-forms.js';
 import { compile_letrec } from './compiler-passes/400-compile-letrec.js';
 import { start_cps } from './compiler-passes/500-cps.js';
+import { lift } from './compiler-passes/AAA-closure-conversion.js';
 
 import { debug_repr } from './utils/debug.js';
 import { parse } from './text/parse.js';
@@ -92,6 +93,11 @@ function visualize_pipeline(code) {
       const cpsed = start_cps(depanalysis);
       console.log('CPS:');
       console.log(pretty_print(cpsed));
+
+      print_header('closure conversion');
+      const lifted = lift(cpsed);
+      // console.debug('lifted:', debug_repr(lifted));
+      console.log(pretty_print(lifted));
     } catch (e) {
       console.error('Error', e);
     }

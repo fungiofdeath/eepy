@@ -13,12 +13,17 @@ export function pretty_print(exp, indent = '') {
   switch (exp.$) {
     case 'literal':
       return `${print_value(exp.value, indent)}`;
-    case 'var':
-      return `${namefmt(exp.name)}`;
+    case 'env-var':
+    case 'var': {
+      const env = exp.env ? `${namefmt(exp.env)}.` : '';
+      return `${env}${namefmt(exp.name)}`;
+    }
+    case 'env-set!':
     case 'set!': {
+      const env = exp.env ? `${namefmt(exp.env)}.` : '';
       const k = exp.k ? `\f${namefmt(exp.k)}` : '';
       return partsfmt(
-        `(set! ${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
+        `(set! ${env}${namefmt(exp.name)}\f${rec(exp.value, indent2)}${k})`,
         ' ',
         `\n${indent2}`,
         60,
@@ -28,6 +33,7 @@ export function pretty_print(exp, indent = '') {
       return `(block${exp.subforms
         .map(f => `\n${indent2}${rec(f, indent2)}`)
         .join('')})`;
+    case 'funcall':
     case 'kcall':
     case 'call': {
       const args = [...exp.args];
@@ -36,6 +42,14 @@ export function pretty_print(exp, indent = '') {
       const kk = exp.$ === 'kcall' ? 'k ' : '';
       const parts = args.map(f => `\f${rec(f, indent + ' ')}`).join('');
       return `(${kk}${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
+    }
+    case 'make-closure': {
+      return `(make-closure ${rec(exp.fn)}${exp.captures
+        .map(
+          ({ name, value }) =>
+            `\f:${namefmt(name)}\f${rec(value, indent2)}`,
+        )
+        .join('')})`;
     }
     case 'if':
       return partsfmt(
