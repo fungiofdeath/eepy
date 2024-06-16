@@ -26,7 +26,7 @@ export function free_variables(exp, frees = new Set()) {
     case 'lambda':
     case 'klambda':
       recur(exp.body);
-      exp.params.forEach(param => frees.delete(param.name));
+      exp.params.forEach(param => frees.delete(param));
       return frees;
   }
 }
