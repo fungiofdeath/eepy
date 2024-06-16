@@ -29,7 +29,8 @@ export class Env {
   get = name => {
     let cursor = this;
     while (cursor) {
-      const found = cursor.bindings.get(name);
+      const found =
+        cursor.bindings.get(name) || cursor.bindings.get(name?.name);
       if (found) {
         return found;
       }

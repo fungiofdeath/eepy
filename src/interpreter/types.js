@@ -1,3 +1,4 @@
+import { print_value } from '../text/pretty-print.js';
 import { NotImplemented } from '../utils/errors.js';
 import { Env } from './environment.js';
 import { evaluate } from './eval.js';
@@ -30,7 +31,7 @@ export class EepyLiteral extends Value {
   }
 
   print = () => {
-    return `${this.value}`;
+    return print_value(this.value);
   };
 }
 

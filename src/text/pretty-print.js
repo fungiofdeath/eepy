@@ -82,7 +82,7 @@ export function pretty_print(exp, indent = '') {
   }
 }
 
-function print_value(value, indent) {
+export function print_value(value, indent) {
   const rec = (x, new_indent = indent) => print_value(x, new_indent);
   if (!value?.$) {
     return debug_repr(value);

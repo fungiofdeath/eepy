@@ -67,9 +67,10 @@ function repl() {
             console.error('Error', debug_repr(errors.shift()));
           }
         } else {
-          const env = init_env();
+          const env = init_env(errors);
           const ast = sexp_to_ast(exp, env);
           const result = evaluate(topenv, ast);
+          console.debug(debug_repr(result));
           console.log(result.print());
         }
       } catch (e) {
@@ -79,7 +80,8 @@ function repl() {
           e instanceof NameError ||
           e instanceof DuplicateBinding
         ) {
-          console.error(`${e.constructor.name}: ${e.message}`);
+          // console.error(`${e.constructor.name}: ${e.message}`);
+          console.error(e);
         } else {
           throw e;
         }
@@ -97,7 +99,7 @@ function visualize_pipeline(code) {
       consumeErrors(errors);
 
       print_header('name resolution');
-      const env = init_env();
+      const env = init_env(errors);
       const resolved = sexp_to_ast(exp, env);
       // console.debug(debug_repr(resolved));
       consumeErrors(errors);
@@ -140,7 +142,7 @@ function visualize_pipeline(code) {
   }
 }
 
-function init_env() {
+function init_env(errors) {
   const env = new Env(errors);
   const core_module_result = env.import_module('sys:core');
   core_module_result.consume(
