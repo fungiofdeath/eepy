@@ -10,9 +10,15 @@
  *  - https://legacy.cs.indiana.edu/~dyb/pubs/letrec-reloaded.pdf
  */
 
+/// <reference path="../types/expr.d.ts"/>
+
 import { free_variables } from '../utils/free-variables.js';
 import { map_subforms } from '../utils/visitors.js';
 
+/**
+ * @param {Expr} exp
+ * @returns {Expr}
+ */
 export function compile_letrec(exp) {
   exp = map_subforms(compile_letrec, exp);
   switch (exp.$) {

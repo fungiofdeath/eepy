@@ -1,5 +1,11 @@
+/// <reference path="../types/expr.d.ts"/>
+
 import { map_subforms } from '../utils/visitors.js';
 
+/**
+ * @param {Expr} exp
+ * @returns {Expr}
+ */
 export function flatten(exp) {
   switch (exp.$) {
     default:

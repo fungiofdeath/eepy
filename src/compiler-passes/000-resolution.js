@@ -1,6 +1,7 @@
+/// <reference path="../types/expr.d.ts"/>
 /// <reference path="../types/gensym.d.ts" />
-/// <reference path="../types/parse-tree.d.ts" />
 /// <reference path="../types/modules.d.ts"/>
+/// <reference path="../types/parse-tree.d.ts" />
 
 import { Result } from '../utils/result.js';
 import { Sexp, ArrayPattern, IPattern, OrPattern } from '../utils/patterns.js';
@@ -9,6 +10,11 @@ import { debug_repr } from '../utils/debug.js';
 import { ensure_loaded } from '../modules.js';
 import { gensym } from '../utils/symbols.js';
 
+/**
+ * @param {Sexp} sexp
+ * @param {Env} env
+ * @returns {Expr}
+ */
 export function sexp_to_ast(sexp, env = new Env()) {
   const recur = x => sexp_to_ast(x, env);
   switch (sexp.$) {
@@ -69,6 +75,10 @@ function qatom(path, span) {
   };
 }
 
+/**
+ * @param {Sexp} sexp
+ * @returns {Value}
+ */
 function sexp_to_data(sexp) {
   switch (sexp.$) {
     case 'number':
@@ -102,6 +112,10 @@ function sexp_to_tagged_list(sexp, tag, ...items) {
   };
 }
 
+/**
+ * @param {SexpSAtom | SexpQAtom} sym1
+ * @param {SexpSAtom | SexpQAtom} sym2
+ */
 function identical_symbols_p(sym1, sym2) {
   if (sym1.$ !== 'atom' && sym1.$ !== 'qatom') {
     throw new Error(`Invalid Symbol ${debug_repr(sym1)}`);
@@ -127,6 +141,7 @@ function identical_symbols_p(sym1, sym2) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function apply(fn, args, sexp, env) {
   if (fn.$ === 'atom') {
@@ -156,6 +171,7 @@ function apply(fn, args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_call(fn, args, sexp, env) {
   return {
@@ -170,6 +186,12 @@ function nil(sexp) {
   return { $: 'literal', value: coreatom('nil', sexp), span: sexp.span };
 }
 
+/**
+ * @param {Sexp[]} args
+ * @param {Sexp} sexp
+ * @param {Env} env
+ * @returns {Expr}
+ */
 function convert_block(args, sexp, env) {
   if (args.length === 0) {
     return nil(sexp);
@@ -296,6 +318,7 @@ const Parse = {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_set(args, sexp, env) {
   return Parse.Args()
@@ -317,6 +340,7 @@ function convert_set(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_import(args, sexp, env) {
   const ImportList = Sexp.ListOf().rest(
@@ -355,6 +379,7 @@ function convert_import(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_if(args, sexp, env) {
   return Parse.Args()
@@ -378,6 +403,7 @@ function convert_if(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_let(args, sexp, env) {
   return Parse.LetPattern()
@@ -427,6 +453,7 @@ function convert_let(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_letstar(args, sexp, env) {
   return Parse.LetPattern()
@@ -478,6 +505,7 @@ function convert_letstar(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_letrec(args, sexp, env) {
   return Parse.LetPattern()
@@ -546,6 +574,7 @@ function convert_letrec(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_labels(args, sexp, env) {
   return Parse.Args()
@@ -619,6 +648,7 @@ function convert_labels(args, sexp, env) {
  * @param {Sexp[]} args
  * @param {SexpList} sexp
  * @param {Env} env
+ * @returns {Expr}
  */
 function convert_lambda(args, sexp, env) {
   return Parse.Args()

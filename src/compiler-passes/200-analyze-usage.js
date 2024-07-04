@@ -1,5 +1,12 @@
+/// <reference path="../types/expr.d.ts"/>
+
 import { map_subforms } from '../utils/visitors.js';
 
+/**
+ * @param {Expr} exp
+ * @param {Set<Name>} seen_vars
+ * @returns {Set<Name>}
+ */
 export function analyze_usages(exp, seen_vars = new Set()) {
   map_subforms(analyze_usages, exp, seen_vars);
   switch (exp.$) {

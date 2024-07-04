@@ -30,14 +30,26 @@
  * can avoid excessive recursion.
  */
 
+/// <reference path="../types/expr.d.ts"/>
+
 import { debug_repr } from '../utils/debug.js';
 import { InvalidNode, UnknownNode } from '../utils/errors.js';
 import { gensym, is_name, concat_hints } from '../utils/symbols.js';
 
+/**
+ * @param {Expr} exp
+ * @returns {Expr}
+ */
 export function start_cps(exp) {
   return cps(exp, '#%empty-handlers', '#%finish');
 }
 
+/**
+ * @param {Expr} exp
+ * @param {Name} h
+ * @param {Name | Function} k
+ * @param {Name} desired_name
+ */
 function* _cps(exp, h, k, desired_name=undefined) {
   switch (exp.$) {
     case 'literal':
@@ -196,8 +208,8 @@ function eval_intermediate(exp, h, desired_name=undefined) {
  * A join effect, used to tell the driver to bind `k` to a name before
  * continuing, if it hasn't already been bound.
  *
- * @param name a hint used in generating the name of the newly-bound `k`.
- * @param k a continuation to be bound to a name
+ * @param {Name | String} name a hint used in generating the name of the newly-bound `k`.
+ * @param {Name | Function} k a continuation to be bound to a name
  * @returns a continuation name that, if invoked, will invoke `k`
  */
 function wrap(name, k, desired_name=undefined) {
