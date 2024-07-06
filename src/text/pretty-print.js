@@ -39,17 +39,21 @@ export function pretty_print(exp, indent = '') {
       const args = [...exp.args];
       if (exp.arg_h) args.push(exp.arg_h);
       if (exp.arg_k) args.push(exp.arg_k);
-      const kk = exp.$ === 'kcall' ? 'k ' : '';
+      const pref =
+        exp.$ === 'kcall' ? 'k ' : exp.$ === 'funcall' ? 'funcall ' : '';
       const parts = args.map(f => `\f${rec(f, indent + ' ')}`).join('');
-      return `(${kk}${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
+      return `(${pref}${rec(exp.fn)}${partsfmt(parts, ' ', `\n${indent} `, 30)})`;
     }
     case 'make-closure': {
-      return `(make-closure ${rec(exp.fn)}${exp.captures
-        .map(
-          ({ name, value }) =>
-            `\f:${namefmt(name)}\f${rec(value, indent2)}`,
-        )
-        .join('')})`;
+      return `(make-closure ${rec(exp.fn)}${partsfmt(
+        exp.captures
+          .map(
+            ({ name, value }) => `\f:${namefmt(name)}\f${rec(value, indent2)}`,
+          )
+          .join(''),
+        `\n${indent}  `,
+        40,
+      )})`;
     }
     case 'if':
       return partsfmt(
