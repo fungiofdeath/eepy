@@ -40,6 +40,7 @@
                  (if (= n 1) t
                    (if (< n 1) nil
                      (even (- n 1)))))))
+  (set! even even)
   (even 20))
 
 (let* ((a 1)
