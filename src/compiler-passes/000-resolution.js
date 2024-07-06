@@ -392,7 +392,7 @@ function convert_if(args, sexp, env) {
         $: 'if',
         cond,
         then,
-        otherwise: otherwise || nil(args[2]),
+        otherwise: otherwise || nil(sexp),
       }),
       errors =>
         error_wrap(sexp, env, collate_arrayish_errors('if', sexp, errors)),
