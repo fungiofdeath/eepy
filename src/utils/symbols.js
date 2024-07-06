@@ -6,21 +6,26 @@ export const symbol_table = [];
 
 const $symbol = Symbol('symbol');
 
+const Gensym = { [$symbol]: true };
+
 /**
  * @template T
  * @param {T} name
  * @returns {Gensym<T>}
  */
 export function gensym(name, rest = {}) {
-  let extra_data = { ...rest };
+  const output = Object.create(Gensym);
+  Object.assign(output, rest);
   if (typeof name === 'string') {
-    extra_data.name = name;
-  } else {
-    Object.assign(extra_data, name);
+    output.name = name;
+  } else if (name[$symbol]) {
+    output.name = name.name;
+  } else if (typeof name === 'object') {
+    Object.assign(output, name);
   }
-  const g = { [$symbol]: true, ...extra_data, id: symbol_table.length };
-  symbol_table.push(g);
-  return g;
+  output.id = symbol_table.length;
+  symbol_table.push(output);
+  return output;
 }
 
 export function is_name(obj) {
