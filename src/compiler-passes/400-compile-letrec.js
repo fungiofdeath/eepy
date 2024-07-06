@@ -13,6 +13,7 @@
 /// <reference path="../types/expr.d.ts"/>
 
 import { free_variables } from '../utils/free-variables.js';
+import { concat_hints, gensym } from '../utils/symbols.js';
 import { map_subforms } from '../utils/visitors.js';
 
 /**
@@ -122,18 +123,38 @@ function reduce_scc_to_ast(span) {
         return { $: 'labels', binds: [bind], body, span };
       } else {
         // we need to compile it into
-        // | (let ((name nil))
-        // |   (set! name val)
-        // |   body)
-        const set = { $: 'set!', name, value, span: bind.span };
+        //
+        //     (let ((name nil))
+        //       (let ((name-init <lambda>))
+        //         (set! name name-init)
+        //         body)
+        const init_name = gensym(concat_hints(name, '-init'));
         return {
           $: 'let',
           binds: [empty_bind(name, bind.span)],
-          body: { $: 'block', subforms: [set, body], span },
-          span,
+          body: {
+            $: 'let',
+            binds: [{ name: init_name, value, span: value.span }],
+            body: {
+              $: 'block',
+              subforms: [
+                {
+                  $: 'set!',
+                  name,
+                  value: { $: 'var', name: init_name, span: value.span },
+                  span: value.span,
+                },
+                body,
+              ],
+              span,
+            },
+            span,
+          },
         };
       }
     }
+
+    const initializers = [];
     // This are initially sparse. Bindings will be inserted in the same position
     //  as in the letrec.binds, and will later be "squished" to make them
     //  contiguous (non-sparse).
@@ -149,7 +170,13 @@ function reduce_scc_to_ast(span) {
       } else {
         // things here will use a predefined (let-bound) variable, and then
         // set! the variable to its correct value
-        complex[at] = bind;
+        const name_init = gensym(concat_hints(name, '-init'));
+        initializers.push({ name: name_init, value, span: value.span });
+        complex[at] = {
+          name: bind.name,
+          value: { $: 'var', name: name_init, span: value.span },
+          span: bind.span,
+        };
       }
     }
     // squish the array to remove empty elements
@@ -161,17 +188,21 @@ function reduce_scc_to_ast(span) {
         $: 'labels',
         binds: lambdas,
         body: {
-          $: 'block',
-          subforms: [
-            ...complex.map(({ name, value, span }) => ({
-              $: 'set!',
-              name,
-              value,
-              span,
-            })),
-            body,
-          ],
-          span,
+          $: 'let',
+          binds: initializers,
+          body: {
+            $: 'block',
+            subforms: [
+              ...complex.map(({ name, value, span }) => ({
+                $: 'set!',
+                name,
+                value,
+                span,
+              })),
+              body,
+            ],
+            span,
+          },
         },
         span,
       },
