@@ -6,6 +6,14 @@
  * the function to a closure.
  */
 
+// [ ] TODO handle mutually recursive closures
+//      when you have two closures that need to invoke each other, you can wind
+//      up with a labels whose values aren't lambdas.
+//      this should be handleable in `lift > inner` where it handles the
+//      labels case. `letrec*` may also need to be rethought
+// [ ] TODO reconsider letrec* compatibility
+// [ ] TODO fix the self-mutating function case
+
 /// <reference path="../types/expr.d.ts"/>
 
 import { debug_repr } from '../utils/debug.js';
