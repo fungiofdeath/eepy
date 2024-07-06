@@ -6,16 +6,26 @@
  * the function to a closure.
  */
 
+/// <reference path="../types/expr.d.ts"/>
+
 import { debug_repr } from '../utils/debug.js';
 import { free_variables } from '../utils/free-variables.js';
 import { concat_hints, gensym } from '../utils/symbols.js';
 import { map_subforms } from '../utils/visitors.js';
 
-export function lift(exp) {
-  const { functions, closures } = find_closures(exp);
+/**
+ * @param {Expr} exp
+ * @param {Set<Name> | Map<Name>} globals
+ */
+export function lift(exp, globals) {
+  const { functions, closures } = find_closures(exp, globals);
 
   const toplevel = [];
 
+  /**
+   * @param {Expr} exp
+   * @param {Map<Name, ['replace' | 'attach-env', Name]>} substitutions
+   */
   function inner(exp, substitutions = new Map()) {
     const rec = x => inner(x, substitutions);
     switch (exp.$) {
@@ -53,17 +63,27 @@ export function lift(exp) {
         }
         return map_subforms(rec, exp);
       case 'call':
+        console.log('function call type', exp.fn.$);
         if (exp.fn.$ === 'var') {
           const captures = functions.get(exp.fn.name);
-          if (closures.has(exp.fn.name)) {
-            // the closure is already constructed, so we just pass it into
-            // funcall
+          console.log('  calling function', exp.fn.name);
+          if (closures.has(exp.fn.name) || !(captures || globals.has(exp.fn.name))) {
+            console.log('    funcall');
+            // if this is a known closure, then the closure is already
+            //  constructed, so we can just funcall.
+            // or we're dealing with something that hasnt been
+            //  obviously declared, so we're dealing with a function parameter.
+            //  all function parameters must be closures, so we also funcall
             return {
               ...exp,
               $: 'funcall',
+              fn: rec(exp.fn),
               args: exp.args.map(rec),
+              arg_h: exp.arg_h && rec(exp.arg_h),
+              arg_k: exp.arg_k && rec(exp.arg_k),
             };
           } else if (captures) {
+            console.log('    declared function');
             // in this case, we have to prepend extra arguments for each
             // of the lambdas captures
             return {
@@ -72,7 +92,17 @@ export function lift(exp) {
                 ...captures.map(name => ({ $: 'var', name })),
                 ...exp.args.map(rec),
               ],
+              arg_h: exp.arg_h && rec(exp.arg_h),
+              arg_k: exp.arg_k && rec(exp.arg_k),
             }
+          } else {
+            console.log('    imported function');
+            return {
+              ...exp,
+              args: exp.args.map(rec),
+              arg_h: exp.arg_h && rec(exp.arg_h),
+              arg_k: exp.arg_k && rec(exp.arg_k),
+            };
           }
         }
         return map_subforms(rec, exp);
@@ -83,6 +113,7 @@ export function lift(exp) {
         const new_binds = exp.binds.flatMap(({ name, value }) => {
           const captures = functions.get(name);
           if (closures.has(name)) {
+            console.log(name, 'is to be closure converted');
             const env_name = gensym('env');
             const new_substitutions = new Map(substitutions.entries());
             captures.forEach(name =>
@@ -109,6 +140,7 @@ export function lift(exp) {
               },
             ];
           } else if (captures) {
+            console.log(name, 'is to be lambda lifted');
             const new_names = captures.map(name => gensym(name));
             const new_substitutions = new Map(substitutions.entries());
             captures.forEach((name, idx) =>
@@ -120,7 +152,7 @@ export function lift(exp) {
               body: inner(value.body, new_substitutions),
             };
             toplevel.push({ name, value: lifted_lambda });
-            return []; // drop this bindings
+            return []; // drop this binding
           }
           return [{ name, value: rec(value) }];
         });
@@ -148,7 +180,7 @@ export function lift(exp) {
 /**
  * Find all functions which must be closure converted
  */
-function find_closures(exp) {
+function find_closures(exp, globals) {
   const functions = new Map();
   const closures = new Set();
 
@@ -160,13 +192,18 @@ function find_closures(exp) {
       case 'var':
         // pessimize dynamic usages
         if (functions.has(exp.name)) {
+          console.log(exp.name, 'is a function');
           closures.add(exp.name);
+        } else {
+          console.log(exp.name, 'is not a function');
         }
         break;
       // we override lookup for calls, because we dont want function calls to
       // pessimize those functions, only dynamic usages
       case 'call':
         exp.args.forEach(inner);
+        if (exp.arg_h) inner(exp.arg_h);
+        if (exp.arg_k) inner(exp.arg_k);
         break;
       // find functions
       case 'let':
@@ -175,10 +212,13 @@ function find_closures(exp) {
       case 'letrec*':
         for (const bind of exp.binds) {
           if (bind.value.$ === 'lambda') {
+            console.log('finding captures for', bind.name);
             const frees = new Set();
             free_variables(bind.value, frees);
             functions.set(bind.name, [...frees]);
           }
+        }
+        for (const bind of exp.binds) {
           inner(bind.value);
         }
         inner(exp.body);
@@ -190,6 +230,27 @@ function find_closures(exp) {
   }
 
   inner(exp);
+  
+  for (const [name, frees] of functions) {
+    console.log('function', name, ':');
+    let i = 0;
+    while (i < frees.length) {
+      console.log('  free variable', frees[i]);
+      if (
+        (functions.has(frees[i]) && !closures.has(frees[i])) ||
+        globals.has(frees[i])
+      ) {
+        frees.splice(i, 1);
+      } else {
+        console.log('    captured');
+        i += 1;
+      }
+    }
+  }
+
+  for (const name of closures) {
+    console.log('closure', name);
+  }
 
   return { functions, closures };
 }

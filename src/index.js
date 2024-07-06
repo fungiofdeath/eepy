@@ -95,7 +95,14 @@ function visualize_pipeline(code) {
       console.log(pretty_print(cpsed));
 
       print_header('closure conversion');
-      const lifted = lift(cpsed);
+      const lifted = lift(
+        cpsed,
+        new Set(
+          [...core_module_result.assert_ok().items.values()].map(
+            item => item.name,
+          ),
+        ),
+      );
       // console.debug('lifted:', debug_repr(lifted));
       console.log(pretty_print(lifted));
     } catch (e) {
