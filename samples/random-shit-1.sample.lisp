@@ -62,4 +62,18 @@
           (b (compose b a)))
   (a))
 
+;; this causes problems for some versions of closure conversion
+(labels ((compose-1/2/1 (h f g) (lambda (x y) (h (f (g x y)))))
+         (testfn (x)
+           (labels ((bluh1 (y) (bluh2 x y))
+                    (bluh2 (y z) (+ x y z))
+                    (bluh3 (new-x y) (set! x new-x) (bluh1 y))
+                    (bluh4 (x) (if (< x 10) (set! bluh4 bluh1)) (bluh4 (- x 1))))
+             (bluh1 1)
+             (bluh2 1 2)
+             (bluh4 100)
+             (compose-1/2/1 bluh3 bluh1 bluh2))))
+  ((testfn 3) 5))
+
+
 
