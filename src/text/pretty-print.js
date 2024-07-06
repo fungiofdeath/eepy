@@ -51,6 +51,7 @@ export function pretty_print(exp, indent = '') {
             ({ name, value }) => `\f:${namefmt(name)}\f${rec(value, indent2)}`,
           )
           .join(''),
+        ' ',
         `\n${indent}  `,
         40,
       )})`;
